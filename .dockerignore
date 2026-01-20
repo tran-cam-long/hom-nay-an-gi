@@ -1,0 +1,9 @@
+node_modules
+dist
+.venv
+.env*
+yarn-error.log
+frontend/node_modules
+frontend/dist
+.idea
+.git

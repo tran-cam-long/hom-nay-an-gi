@@ -43,6 +43,40 @@ export default defineConfig([
 ])
 ```
 
+Vite / TypeScript project (if you initialized with Vite)
+
+The Vite project supports separate env modes. Place environment variables in files named like:
+
+- `.env.local` — local development (loaded when running `vite --mode local`)
+- `.env.test` — test environment (loaded when running `vite --mode test`)
+
+Each variable that should be exposed to client code must start with `VITE_`, for example:
+
+```
+VITE_API_URL=https://api.example.com
+VITE_ENV=test
+```
+
+Quick commands (run from `frontend/`):
+
+```bash
+# dev using regular (development) mode
+yarn dev
+
+# dev using local mode (loads .env.local)
+yarn dev:local
+
+# dev using test mode (loads .env.test)
+yarn dev:test
+```
+
+Use `frontend/src/config.ts` to import typed env values in code:
+
+```ts
+import config from './config';
+console.log(config.API_URL, config.ENV);
+```
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js
