@@ -4,8 +4,10 @@
 # Log file
 *.log
 
-# BlueJ files
-*.ctxt
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/

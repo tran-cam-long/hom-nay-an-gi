@@ -1,0 +1,16 @@
+{
+  "name": "hom-nay-an-gi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "POI aggregator + frontend demo",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node frontend/src/index.js",
+    "install:frontend": "echo 'No build; open frontend/index.html'"
+  },
+  "packageManager": "yarn@1.22.19",
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "node-fetch": "^2.6.7"
+  }
+}
