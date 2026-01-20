@@ -7,6 +7,11 @@ To view:
 1. Save the cat background image attachment as `frontend/bg-cats.png` (exact filename).
 2. Open `frontend/index.html` in a browser (double-click or `open`/`xdg-open`).
 
+Yarn notes
+
+- You can use Yarn to install root dependencies (server) with `yarn install` and run the aggregator via `yarn start`.
+- The frontend demo itself doesn't require a build — open the HTML file directly.
+
 Notes:
 - This demo uses Babel in the browser for convenience — it's fine for prototyping only, not production.
 - If you want, I can convert this to a Vite/CRA project and wire the aggregator endpoint.
