@@ -5,7 +5,7 @@
   "description": "POI aggregator + frontend demo",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node frontend/src/index.js",
     "install:frontend": "echo 'No build; open frontend/index.html'"
   },
   "packageManager": "yarn@1.22.19",
