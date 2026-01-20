@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   frontend:
+    image: homnay_frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
