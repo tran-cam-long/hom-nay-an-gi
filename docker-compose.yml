@@ -1,12 +1,9 @@
-version: '3.8'
 services:
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: camlongtran/hom-nay-an-gi-frontend:latest
     container_name: homnay_frontend
     ports:
       - "4000:4000"
     environment:
-      - NODE_ENV=development
+      NODE_ENV: development
     restart: unless-stopped

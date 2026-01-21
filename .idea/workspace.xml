@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="99c644d2-43bf-4d70-8b38-94bfae8e4018" name="Changes" comment="[US2] feature: init vite frontend ts" />
+    <list default="true" id="99c644d2-43bf-4d70-8b38-94bfae8e4018" name="Changes" comment="[US1] feature: init sample">
+      <change afterPath="$PROJECT_DIR$/src/static/images/conmeo_background.webp" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
