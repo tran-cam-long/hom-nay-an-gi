@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { inputStyle, modalStyle, overlayStyle } from "./style";
-import { LoginRequest, LoginResponse } from "../types/auth";
+import { type LoginRequest, type LoginResponse } from "../types/auth";
 
 interface Props {
     isOpen: boolean;
