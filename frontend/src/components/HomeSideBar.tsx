@@ -14,15 +14,6 @@ interface Props {
 export const EXPANDED_SIDEBAR_WIDTH = 240;
 export const COLLAPSED_SIDEBAR_WIDTH = 40;
 
-function LayoutIcon() {
-  return (
-    <span className="layout-icon" aria-hidden>
-      <span className="layout-icon-sidebar" />
-      <span className="layout-icon-main" />
-    </span>
-  );
-}
-
 export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) {
   type MenuItem = {
     id: string;

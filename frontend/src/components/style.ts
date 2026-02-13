@@ -43,3 +43,14 @@ export const inputStyle: React.CSSProperties = {
   padding: 8,
   fontSize: 14,
 };
+
+export const authSwitchLink: React.CSSProperties = {
+  background: "none",
+  border: 0,
+  padding: 0,
+  color: "#2f6fed",
+  cursor: "pointer",
+  textAlign: "left"
+}
+
+

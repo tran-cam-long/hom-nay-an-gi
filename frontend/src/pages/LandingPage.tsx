@@ -27,6 +27,10 @@ export default function LandingPage() {
     localStorage.setItem("refreshToken", data.refreshToken);
   };
 
+  const handleRegisterSuccess = () => {
+    setNotification({ isOpen: true, message: "Account created!" })
+  }
+
   const handleLogout = async () => {
     const refreshToken = localStorage.getItem("refreshToken");
 
@@ -87,6 +91,7 @@ export default function LandingPage() {
           isOpen={isLoginOpen}
           onClose={() => setIsLoginOpen(false)}
           onLoginSuccess={handleLoginSuccess}
+          onRegisterSuccess={handleRegisterSuccess}
         />
 
         <div>
