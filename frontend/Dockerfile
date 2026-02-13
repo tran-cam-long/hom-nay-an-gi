@@ -1,17 +1,12 @@
-FROM node:22-alpine
-
-WORKDIR /usr/src/app
-
-# install deps
-COPY package.json yarn.lock* ./
-RUN apk add --no-cache python3 make g++ || true
-RUN yarn install --frozen-lockfile || yarn install
-
-# copy source
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 COPY . .
+ARG VITE_MODE=production
+RUN yarn build --mode ${VITE_MODE}
 
-# expose port for vite dev server
-EXPOSE 4000
-
-# Run Vite in test mode and bind to 0.0.0.0 on port 4000
-CMD ["yarn", "dev:test", "--", "--host", "0.0.0.0", "--port", "4000"]
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
