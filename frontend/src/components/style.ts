@@ -1,12 +1,21 @@
 
+export const TOP_BAR_HEIGHT = 60;
+
 export const barStyle: React.CSSProperties = {
-    height: 60,
-    padding: "0 16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottom: "1px solid #ddd"
-}
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  height: TOP_BAR_HEIGHT,
+  padding: "0 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderBottom: "1px solid #ddd",
+  boxSizing: "border-box",
+  background: "#fff",
+  zIndex: 1100,
+};
 
 export const overlayStyle: React.CSSProperties = {
   position: "fixed",
