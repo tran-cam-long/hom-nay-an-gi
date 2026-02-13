@@ -25,12 +25,12 @@ export default function LandingPage() {
   return (
     <div>
       <TopBar
-        username={loginRes?.token}
+        username={loginRes?.username}
         onLoginClick={() => setIsLoginOpen(true)}
       />
 
       <HomeSideBar
-        username={loginRes?.token}
+        username={loginRes?.username}
         isCollapsed={isSidebarCollapsed}
         onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
       />
