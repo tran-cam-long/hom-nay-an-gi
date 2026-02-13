@@ -3,8 +3,7 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
-ARG VITE_MODE=production
-RUN yarn build --mode ${VITE_MODE}
+RUN yarn build --mode private
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html

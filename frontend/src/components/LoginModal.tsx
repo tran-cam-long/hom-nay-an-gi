@@ -2,6 +2,7 @@ import { useState } from "react";
 import { inputStyle, modalStyle, overlayStyle } from "./style";
 import "./LoginModal.css";
 import { type LoginResponse } from "../types/auth";
+import { API_BASE_URL } from "../config";
 
 interface Props {
     isOpen: boolean;
@@ -62,7 +63,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
 
     const handleLogin = async () => {
         try {
-            const res = await fetch("http://localhost:3000/auth/login", {
+            const res = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -87,7 +88,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
 
     const handleRegister = async () => {
         try {
-            const res = await fetch("http://localhost:3000/auth/register", {
+            const res = await fetch(`${API_BASE_URL}/auth/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

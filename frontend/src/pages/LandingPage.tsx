@@ -10,6 +10,7 @@ import { TOP_BAR_HEIGHT } from "../components/style";
 import reactLogo from "../assets/react.svg";
 import bodyBackground from "../assets/conmeo_background.webp";
 import NotificationModal from "../components/NotificationModal";
+import { API_BASE_URL } from "../config";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -45,7 +46,7 @@ export default function LandingPage() {
     try {
       const request: LogoutRequest = { refreshToken };
 
-      await fetch("http://localhost:3000/auth/logout", {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
