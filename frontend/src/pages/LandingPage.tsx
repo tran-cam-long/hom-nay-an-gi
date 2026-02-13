@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LoginResponse } from "../types/auth";
+import type { LoginResponse, LogoutRequest } from "../types/auth";
 import TopBar from "../components/TopBar";
 import LoginModal from "../components/LoginModal";
 import HomeSideBar, {
@@ -22,6 +22,32 @@ export default function LandingPage() {
     localStorage.setItem("refreshToken", data.refreshToken);
   };
 
+  const handleLogout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    setLoginRes(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+
+    if (!refreshToken) {
+      return;
+    }
+
+    try {
+      const request: LogoutRequest = { refreshToken };
+
+      await fetch("http://localhost:3000/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+    } catch {
+      // Client is already logged out locally; ignore network errors.
+    }
+  };
+
   const sidebarWidth = isSidebarCollapsed 
     ? COLLAPSED_SIDEBAR_WIDTH 
     : EXPANDED_SIDEBAR_WIDTH;
@@ -33,6 +59,7 @@ export default function LandingPage() {
       <TopBar
         username={loginRes?.username}
         onLoginClick={() => setIsLoginOpen(true)}
+        onLogoutClick={handleLogout}
       />
 
       <HomeSideBar

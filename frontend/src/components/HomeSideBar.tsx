@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 
 import { TOP_BAR_HEIGHT } from "./style";
 import "./HomeSideBar.css";
+import { LuHouse, LuLayoutPanelLeft, LuSettings, LuUtensils } from "react-icons/lu";
+import type { IconType } from "react-icons";
 
 interface Props {
   username?: string;
@@ -22,7 +24,20 @@ function LayoutIcon() {
 }
 
 export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) {
-  const menuItems = useMemo(() => ["Home", "Settings", "Homnayangi"], []);
+  type MenuItem = {
+    id: string;
+    title: string;
+    icon: IconType;
+  };
+
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      { id: "home", title: "Home", icon: LuHouse },
+      { id: "settings", title: "Settings", icon: LuSettings },
+      { id: "homnayangi", title: "Homnayangi", icon: LuUtensils },
+    ],
+    []
+  );
   const [activeItem, setActiveItem] = useState<string | null>("Home");
 
   return (
@@ -44,29 +59,29 @@ export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) 
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={`home-sidebar-row ${isCollapsed ? "collapsed" : ""}`}
             >
-              <LayoutIcon />
+              <LuLayoutPanelLeft />
             </button>
           </li>
 
           {menuItems.map((item) => {
-            const isActive = activeItem === item;
+            const isActive = activeItem === item.id;
+            const Icon = item.icon;
 
             return (
-              <li key={item}>
+              <li key={item.id}>
                 <button
                   type="button"
-                  className={`home-sidebar-row ${isActive ? "active" : ""} ${
-                    isCollapsed ? "collapsed" : ""
-                  }`}
+                  className={`home-sidebar-row ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""
+                    }`}
                   onClick={() =>
-                    setActiveItem((current) => (current === item ? null : item))
+                    setActiveItem((current) => (current === item.id ? null : item.id))
                   }
-                  title={item}
+                  title={item.title}
                   aria-pressed={isActive}
                 >
-                  <span className="home-sidebar-icon" aria-hidden />
+                  <Icon className="home-sidebar-icon" aria-hidden />
                   {!isCollapsed && (
-                    <span className="home-sidebar-label">{item}</span>
+                    <span className="home-sidebar-label">{item.title}</span>
                   )}
                 </button>
               </li>
