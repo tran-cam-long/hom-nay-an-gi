@@ -5,12 +5,17 @@
   "description": "POI aggregator + frontend demo",
   "main": "src/index.js",
   "scripts": {
-    "start": "node frontend/src/index.js",
+    "start": "concurrently \"yarn start:server\" \"yarn start:frontend\"",
+    "start:server": "yarn --cwd server start:dev",
+    "start:frontend": "yarn --cwd frontend dev",
     "install:frontend": "echo 'No build; open frontend/index.html'"
   },
   "packageManager": "yarn@1.22.19",
   "dependencies": {
     "dotenv": "^16.0.0",
     "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

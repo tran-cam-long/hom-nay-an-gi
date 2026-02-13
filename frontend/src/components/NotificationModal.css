@@ -1,0 +1,41 @@
+.notify {
+  position: fixed;
+  top: 72px; /* below top bar */
+  right: 16px;
+  width: 300px;
+  background: #f7fbf7;
+  border: 1px solid #d9eadc;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transform-origin: top;
+  opacity: 1;
+  max-height: 120px;
+  transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease;
+}
+
+.notify--closing {
+  opacity: 0;
+  transform: scaleY(0.75);
+  max-height: 0;
+}
+
+.notify__progress {
+  height: 3px;
+  background: #7fbe88; /* soft green */
+  width: 100%;
+  animation-name: notify-progress-shrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.notify__text {
+  margin: 12px;
+  color: #3f7f4b; /* light green, readable on white */
+  font-size: 14px;
+}
+
+@keyframes notify-progress-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
