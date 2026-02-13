@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { authSwitchLink, inputStyle, modalStyle, overlayStyle } from "./style";
+import { inputStyle, modalStyle, overlayStyle } from "./style";
+import "./LoginModal.css";
 import { type LoginResponse } from "../types/auth";
 
 interface Props {
@@ -25,7 +26,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
     if (!isOpen) return null;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        const nextForm = { ...form, [name]: value };
+        setForm(nextForm);
+
+        if (mode === "register") {
+            if (
+                nextForm.confirmPassword.length > 0 &&
+                nextForm.password !== nextForm.confirmPassword
+            ) {
+                setError("Both passwords must match");
+            } else {
+                setError(null);
+            }
+        }
     };
 
     const handleSubmit = async () => {
@@ -34,6 +49,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
 
         if (form.password.length === 0 || form.username.length === 0) {
             setError("Username and password are required!")
+            setLoading(false);
+            return;
         }
 
         if (mode === 'login') {
@@ -69,10 +86,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
     }
 
     const handleRegister = async () => {
-        if (form.password !== form.confirmPassword) {
-            setError("Both passwords must match");
-        }
-
         try {
             const res = await fetch("http://localhost:3000/auth/register", {
                 method: "POST",
@@ -87,7 +100,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
             }
 
             onRegisterSuccess();
-            onClose();
         } catch (e) {
             setError("Register failed");
         } finally {
@@ -120,7 +132,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
                 {mode === "register" &&
                     <input
                         name="confirmPassword"
-                        type="confirmPassword"
+                        type="password"
                         placeholder="Confirm Password"
                         value={form.confirmPassword}
                         onChange={handleChange}
@@ -137,14 +149,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
                     <button onClick={onClose}>Cancel</button>
                 </div>
 
-                <button type="button" style={authSwitchLink} 
-                        onClick={() => setMode(mode === "login" ? "register" : "login")}>
-                            {
-                                mode === "login"
-                                ? "Don't have an account? Click here to register."
-                                : "Already have an account? Back to login."
-                            }
-                    </button>
+                <button type="button" className="auth-switch-link"
+                    onClick={() => setMode(mode === "login" ? "register" : "login")}>
+                    {
+                        mode === "login"
+                            ? "Don't have an account? Click here to register."
+                            : "Already have an account? Back to login."
+                    }
+                </button>
             </div>
         </div>
     )
