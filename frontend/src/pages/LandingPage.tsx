@@ -9,11 +9,16 @@ import HomeSideBar, {
 import { TOP_BAR_HEIGHT } from "../components/style";
 import reactLogo from "../assets/react.svg";
 import bodyBackground from "../assets/conmeo_background.webp";
+import NotificationModal from "../components/NotificationModal";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loginRes, setLoginRes] = useState<LoginResponse | null>(null);
+  const [notification, setNotification] = useState<{ isOpen: boolean; message: string}> ({
+    isOpen: false,
+    message: ""
+  })
 
   const handleLoginSuccess = (data: LoginResponse) => {
     setLoginRes(data);
@@ -46,6 +51,8 @@ export default function LandingPage() {
     } catch {
       // Client is already logged out locally; ignore network errors.
     }
+
+    setNotification({ isOpen: true, message: "Logged out"})
   };
 
   const sidebarWidth = isSidebarCollapsed 
@@ -92,6 +99,13 @@ export default function LandingPage() {
         </div>
         <h1>Hello conmeo Vien</h1>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        message={notification.message}
+        durationMs={5000}
+        onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))} 
+      />
     </div>
   );
 }
