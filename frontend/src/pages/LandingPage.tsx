@@ -22,6 +22,12 @@ export default function LandingPage() {
     localStorage.setItem("refreshToken", data.refreshToken);
   };
 
+  const sidebarWidth = isSidebarCollapsed 
+    ? COLLAPSED_SIDEBAR_WIDTH 
+    : EXPANDED_SIDEBAR_WIDTH;
+
+  const pushX = sidebarWidth - COLLAPSED_SIDEBAR_WIDTH;
+
   return (
     <div>
       <TopBar
@@ -38,10 +44,9 @@ export default function LandingPage() {
       <div
         style={{
           marginTop: TOP_BAR_HEIGHT,
-          marginLeft: isSidebarCollapsed
-            ? COLLAPSED_SIDEBAR_WIDTH
-            : EXPANDED_SIDEBAR_WIDTH,
-          transition: "margin-left 0.2s ease",
+          width: `calc(100vw - ${COLLAPSED_SIDEBAR_WIDTH}px)`,
+          transform: `translateX(${pushX}px)`,
+          transition: "transform 0.2s ease",
         }}
       >
         <LoginModal

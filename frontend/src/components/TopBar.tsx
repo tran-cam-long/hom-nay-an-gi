@@ -8,7 +8,7 @@ interface Props {
 export default function TopBar({ username, onLoginClick }: Props) {
     return (
         <div style={barStyle}>
-            <div style={{ fontWeight: 600 }}>My app</div>
+            <div style={{ fontWeight: 600 }}>Conmeo Vien Ultility App</div>
 
             <div>
                 {!username ? (
