@@ -14,11 +14,14 @@ import bodyBackground from "../assets/conmeo_background.webp";
 import NotificationModal from "../components/NotificationModal";
 import { API_BASE_URL } from "../config";
 import useIsMobile from "../hooks/useIsMobile";
+import type { PageKey } from "../types/navigation";
+import HomnayangiPage from "./HomnayangiPage";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loginRes, setLoginRes] = useState<LoginResponse | null>(null);
+  const [activePage, setActivePage] = useState<PageKey>("home");
   const [notification, setNotification] = useState<{ isOpen: boolean; message: string }>({
     isOpen: false,
     message: ""
@@ -83,10 +86,18 @@ export default function LandingPage() {
           username={loginRes?.username}
           isCollapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+          activeItem={activePage}
+          onItemSelect={setActivePage}
         />
       )}
 
-      {isMobile && <HomeBottomBar username={loginRes?.username} />}
+      {isMobile && (
+        <HomeBottomBar
+          username={loginRes?.username}
+          activeItem={activePage}
+          onItemSelect={setActivePage}
+        />
+      )}
 
       <div
         style={
@@ -104,12 +115,22 @@ export default function LandingPage() {
             }
         }
       >
-        <div>
-          <div className="bodyImage">
-            <img src={bodyBackground} alt="Background cats" />
+        {activePage === "home" && (
+          <div>
+            <div className="bodyImage">
+              <img src={bodyBackground} alt="Background cats" />
+            </div>
           </div>
-        </div>
-        <h1>Hello conmeo Vien</h1>
+        )}
+
+        {activePage === "home" && <h1>Hello conmeo Vien</h1>}
+        {activePage === "homnayangi" && <HomnayangiPage />}
+        {activePage === "settings" && (
+          <section style={{ padding: 16 }}>
+            <h2>Settings</h2>
+            <p>Settings page is not implemented yet.</p>
+          </section>
+        )}
       </div>
 
       <LoginModal
