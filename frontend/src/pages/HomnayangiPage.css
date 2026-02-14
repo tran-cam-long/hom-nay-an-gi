@@ -26,6 +26,16 @@
     background: #f7f7f7;
 }
 
+.choose-btn--overlay {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(2px);
+}
+
 .choose-btn--confirm {
     background: #e8f5e9;
     border-color: #9ccc9c;
@@ -37,26 +47,78 @@
 }
 
 .choose-popover {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    width: 280px;
-    z-index: 20;
-    background: #fff;
-    border: 1px solid #dfe7df;
-    padding: 10px;
-    font-size: 12px;
-    color: #2b2b2b;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0, 0.12);
-
-    opacity: 0;
-    transform: translateY(8px);
-    pointer-events: none;
-    transition: opacity 160ms ease, transform 160ms ease;
+  position: absolute;
+  right: 0;
+  top: calc(80%);
+  z-index: 20;
+  background: #fff;
+  border: 1px solid #dfe7df;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #2b2b2b;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .choose-popover--open {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dish-grid.table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 12px 12px;
+    margin-top: 12px;
+}
+
+.dish-grid-cell {
+    width: 50%;
+    vertical-align: top;
+}
+
+.dish-grid-empty {
+    text-align: center;
+    padding: 16px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+}
+
+.dish-item-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.dish-item-card--placeholder {
+  min-height: 240px;
+  border: 1px dashed #e0e0e0;
+  background: #fafafa;
+}
+
+.dish-item-image-wrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dish-item-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.dish-item-name {
+  font-weight: 600;
+  line-height: 1.3;
 }

@@ -27,6 +27,62 @@ function normalizeDishResponse(payload: unknown): DishDetails[] {
   return [];
 }
 
+type DishItemCardProps = {
+  dish: DishDetails;
+  armedDishId: number | null;
+  isChoosingEnabled: boolean;
+  isSubmittingChoice: boolean;
+  onChooseClick: (dishId: number) => void;
+  setRowRef: (el: HTMLDivElement | null) => void;
+}
+
+function DishItemCard({
+  dish,
+  armedDishId,
+  isChoosingEnabled,
+  isSubmittingChoice,
+  onChooseClick,
+  setRowRef
+}: DishItemCardProps) {
+  const isConfirming = armedDishId === dish.id;
+
+  return (
+    <div className="dish-item-card" ref={setRowRef}>
+      <div className="dish-item-image-wrap">
+        <img className="dish-item-image" src={dish.imageUrl} alt={dish.name} />
+
+        {isChoosingEnabled && (
+          <button
+            type="button"
+            className={`choose-btn choose-btn--overlay ${isConfirming ? "choose-btn--confirm" : ""}`}
+            onClick={() => onChooseClick(dish.id)}
+            disabled={isSubmittingChoice}>
+            {isConfirming ? (
+              <>
+                <span className="choose-btn__icon" aria-hidden>
+                  ✓
+                </span>
+                Confirm?
+              </>
+            ) : (
+              "Choose"
+            )}
+          </button>
+        )}
+      </div>
+      <div className="dish-item-name">{dish.name}</div>
+
+      <div
+        className={`choose-popover ${isConfirming ? "choose-popover--open" : ""}`}
+        role="dialog"
+        aria-hidden={!isConfirming}
+      >
+        By choosing this dish the system will record it and use it for recommendations.
+      </div>
+    </div>
+  )
+}
+
 type HomnayangiPageProps = {
   onNotify: (message: string) => void;
 };
@@ -52,6 +108,16 @@ async function submitChoice(dishId: number): Promise<void> {
   }
 }
 
+function toDishRow(dishes: DishDetails[]): Array<[DishDetails, DishDetails | null]> {
+  const rows: Array<[DishDetails, DishDetails | null]> = [];
+
+  for (let i = 0; i < dishes.length; i += 2) {
+    rows.push([dishes[i], dishes[i + 1] ?? null]);
+  }
+
+  return rows;
+}
+
 export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [dishes, setDishes] = useState<DishDetails[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +127,8 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [isSubmittingChoice, setIsSubmittingChoice] = useState(false);
 
   const rowRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const dishRows = toDishRow(dishes);
 
   const handleGetAll = async () => {
     const accessToken = localStorage.getItem("token");
@@ -166,57 +234,43 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           border: "1px solid #e5e5e5",
         }}
       >
-        <thead>
-          <tr>
-            <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Image</th>
-            <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Name</th>
-          </tr>
-        </thead>
         <tbody>
           {dishes.length === 0 && !loading ? (
             <tr>
               <td
-                colSpan={4}
-                style={{ border: "1px solid #e5e5e5", padding: 8, textAlign: "center" }}
+                colSpan={2}
+                className="dish-grid-empty"
               >
                 No dishes loaded.
               </td>
             </tr>
           ) : (
-            dishes.map((dish) => (
-              <tr key={dish.id}>
-                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>
-                  <img
-                    src={dish.imageUrl}
-                    alt={dish.name}
-                    style={{ width: 250, height: "auto", objectFit: "cover", borderRadius: 6 }}
+            dishRows.map(([leftDish, rightDish]) => (
+              <tr key={leftDish.id}>
+                <td className="dish-grid-cell">
+                  <DishItemCard
+                    dish={leftDish}
+                    armedDishId={armedDishId}
+                    isChoosingEnabled={isChoosingEnabled}
+                    isSubmittingChoice={isSubmittingChoice}
+                    onChooseClick={handleChooseClick}
+                    setRowRef={(el) => { rowRefs.current[leftDish.id] = el }}
                   />
                 </td>
-                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>
-                  <div className="dish-name-cell" ref={(el) => { rowRefs.current[dish.id] = el }}>
-                    <div className="dish-name-text">{dish.name}<div />
-                      {isChoosingEnabled && (
-                        <button
-                          type="button"
-                          className={`choose-btn ${armedDishId === dish.id ? "choose-btn--confirm" : ""}`}
-                          onClick={() => handleChooseClick(dish.id)}
-                          disabled={isSubmittingChoice}>
-                          {armedDishId === dish.id ? (
-                            <>
-                              <span className="choose-btn__icon" aria-hidden>✓</span>
-                              Confirm?
-                            </>
-                          ) : ("Choose")}
-                        </button>
-                      )}
 
-                      <div
-                        className={`choose-popover ${armedDishId === dish.id ? "choose-popover--open" : ""}`}
-                        role="dialog" aria-hidden={armedDishId !== dish.id}>
-                        By choosing this dish the system will record your choice and use it for recommendations.
-                      </div>
-                    </div>
-                  </div>
+                <td className="dish-grid-cell">
+                  {rightDish ? (
+                    <DishItemCard
+                      dish={rightDish}
+                      armedDishId={armedDishId}
+                      isChoosingEnabled={isChoosingEnabled}
+                      isSubmittingChoice={isSubmittingChoice}
+                      onChooseClick={handleChooseClick}
+                      setRowRef={(el) => { rowRefs.current[leftDish.id] = el }}
+                    />
+                  ) : (
+                    <div className="dish-item-card dish-item-card-placeholder" aria-hidden />
+                  )}
                 </td>
               </tr>
             ))
