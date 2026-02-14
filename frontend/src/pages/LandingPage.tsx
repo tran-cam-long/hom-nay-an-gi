@@ -124,7 +124,7 @@ export default function LandingPage() {
         )}
 
         {activePage === "home" && <h1>Hello conmeo Vien</h1>}
-        {activePage === "homnayangi" && <HomnayangiPage />}
+        {activePage === "homnayangi" && <HomnayangiPage onNotify={(message) => setNotification({ isOpen: true, message })} />}
         {activePage === "settings" && (
           <section style={{ padding: 16 }}>
             <h2>Settings</h2>

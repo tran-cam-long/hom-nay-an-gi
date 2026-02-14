@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../config";
 import type { DishDetails } from "../types/dish";
+import "./HomnayangiPage.css";
 
 function normalizeDishResponse(payload: unknown): DishDetails[] {
   if (Array.isArray(payload)) return payload as DishDetails[];
@@ -26,10 +27,40 @@ function normalizeDishResponse(payload: unknown): DishDetails[] {
   return [];
 }
 
-export default function HomnayangiPage() {
+type HomnayangiPageProps = {
+  onNotify: (message: string) => void;
+};
+
+async function submitChoice(dishId: number): Promise<void> {
+  const accessToken = localStorage.getItem("token");
+
+  if (!accessToken) {
+    throw new Error("Please login first");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/dishchoice/choice`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ dishId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to choose dish: ${response.status}`);
+  }
+}
+
+export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [dishes, setDishes] = useState<DishDetails[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [armedDishId, setArmedDishId] = useState<number | null>(null);
+  const [isChoosingEnabled, setIsChoosingEnabled] = useState(true);
+  const [isSubmittingChoice, setIsSubmittingChoice] = useState(false);
+
+  const rowRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const handleGetAll = async () => {
     const accessToken = localStorage.getItem("token");
@@ -64,9 +95,63 @@ export default function HomnayangiPage() {
     }
   };
 
+  const handleChooseClick = async (dishId: number) => {
+    if (!isChoosingEnabled || isSubmittingChoice) return;
+
+    if (armedDishId !== dishId) {
+      setArmedDishId(dishId);
+      return;
+    }
+
+    setIsSubmittingChoice(true);
+    setError(null);
+
+    try {
+      await submitChoice(dishId);
+      setArmedDishId(null);
+      setIsChoosingEnabled(false);
+      onNotify("Dish chosen!");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cannot submit choice right now.");
+    } finally {
+      setIsSubmittingChoice(false);
+    }
+  }
+
+  useEffect(() => {
+    if (armedDishId === null) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const container = rowRefs.current[armedDishId];
+      if (!container) {
+        setArmedDishId(null);
+        return;
+      }
+
+      const target = event.target as Node;
+      if (!container.contains(target)) {
+        setArmedDishId(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [armedDishId]);
+
   return (
     <section style={{ padding: 16 }}>
       <h2>Homnayangi</h2>
+      {!isChoosingEnabled && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsChoosingEnabled(true);
+            setArmedDishId(null);
+            setError(null);
+          }}>
+          Choose again
+        </button>
+      )}
       <button type="button" onClick={handleGetAll} disabled={loading}>
         {loading ? "Loading..." : "Get all"}
       </button>
@@ -85,8 +170,6 @@ export default function HomnayangiPage() {
           <tr>
             <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Image</th>
             <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Name</th>
-            <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Type</th>
-            <th style={{ border: "1px solid #e5e5e5", padding: 8 }}>Culture</th>
           </tr>
         </thead>
         <tbody>
@@ -106,12 +189,35 @@ export default function HomnayangiPage() {
                   <img
                     src={dish.imageUrl}
                     alt={dish.name}
-                    style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }}
+                    style={{ width: 250, height: "auto", objectFit: "cover", borderRadius: 6 }}
                   />
                 </td>
-                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>{dish.name}</td>
-                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>{dish.type}</td>
-                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>{dish.culture}</td>
+                <td style={{ border: "1px solid #e5e5e5", padding: 8 }}>
+                  <div className="dish-name-cell" ref={(el) => { rowRefs.current[dish.id] = el }}>
+                    <div className="dish-name-text">{dish.name}<div />
+                      {isChoosingEnabled && (
+                        <button
+                          type="button"
+                          className={`choose-btn ${armedDishId === dish.id ? "choose-btn--confirm" : ""}`}
+                          onClick={() => handleChooseClick(dish.id)}
+                          disabled={isSubmittingChoice}>
+                          {armedDishId === dish.id ? (
+                            <>
+                              <span className="choose-btn__icon" aria-hidden>✓</span>
+                              Confirm?
+                            </>
+                          ) : ("Choose")}
+                        </button>
+                      )}
+
+                      <div
+                        className={`choose-popover ${armedDishId === dish.id ? "choose-popover--open" : ""}`}
+                        role="dialog" aria-hidden={armedDishId !== dish.id}>
+                        By choosing this dish the system will record your choice and use it for recommendations.
+                      </div>
+                    </div>
+                  </div>
+                </td>
               </tr>
             ))
           )}

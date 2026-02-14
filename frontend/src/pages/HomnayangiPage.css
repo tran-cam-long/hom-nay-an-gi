@@ -1,0 +1,62 @@
+.dish-name-cell {
+    position: relative; 
+    display: inline-flex;
+    flex-direction: column;
+    gap: small;
+}
+
+.dish-name-text {
+    font-weight: bold
+}
+
+.choose-btn {
+    border: 1px solid #cfd8dc;
+    background: #fff;
+    color: #2b2b2b;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.choose-btn:hover {
+    background: #f7f7f7;
+}
+
+.choose-btn--confirm {
+    background: #e8f5e9;
+    border-color: #9ccc9c;
+    color: #1b5e20;
+}
+
+.choose-btn__icon {
+    font-weight: 700;
+}
+
+.choose-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: 280px;
+    z-index: 20;
+    background: #fff;
+    border: 1px solid #dfe7df;
+    padding: 10px;
+    font-size: 12px;
+    color: #2b2b2b;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0, 0.12);
+
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.choose-popover--open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
