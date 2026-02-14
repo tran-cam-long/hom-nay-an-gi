@@ -28,9 +28,12 @@
 
 .choose-btn--overlay {
   position: absolute;
-  left: 8px;
-  right: 8px;
+  left: 50%;
   bottom: 8px;
+  transform: translateX(-50%);
+  width: min(120px, calc(100% - 5rem));
+  padding: 4px 8px;
+  font-size: 12px;
   justify-content: center;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(2px);
@@ -40,6 +43,11 @@
     background: #e8f5e9;
     border-color: #9ccc9c;
     color: #1b5e20;
+    opacity: 1;
+}
+
+.choose-btn--overlay:not(.choose-btn--confirm) {
+  opacity: 0.85;
 }
 
 .choose-btn__icon {
