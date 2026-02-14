@@ -87,13 +87,6 @@ export default function LandingPage() {
           transition: "transform 0.2s ease",
         }}
       >
-        <LoginModal
-          isOpen={isLoginOpen}
-          onClose={() => setIsLoginOpen(false)}
-          onLoginSuccess={handleLoginSuccess}
-          onRegisterSuccess={handleRegisterSuccess}
-        />
-
         <div>
           <div className="bodyImage">
             <img src={bodyBackground} alt="Background cats" />
@@ -101,6 +94,13 @@ export default function LandingPage() {
         </div>
         <h1>Hello conmeo Vien</h1>
       </div>
+
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        onRegisterSuccess={handleRegisterSuccess}
+      />
 
       <NotificationModal
         isOpen={notification.isOpen}
