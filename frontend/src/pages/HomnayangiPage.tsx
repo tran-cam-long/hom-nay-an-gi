@@ -231,7 +231,6 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           marginTop: 12,
           width: "100%",
           borderCollapse: "collapse",
-          border: "1px solid #e5e5e5",
         }}
       >
         <tbody>
