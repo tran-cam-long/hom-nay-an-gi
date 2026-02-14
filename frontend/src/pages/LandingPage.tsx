@@ -7,7 +7,6 @@ import HomeSideBar, {
   EXPANDED_SIDEBAR_WIDTH,
 } from "../components/HomeSideBar";
 import { TOP_BAR_HEIGHT } from "../components/style";
-import reactLogo from "../assets/react.svg";
 import bodyBackground from "../assets/conmeo_background.webp";
 import NotificationModal from "../components/NotificationModal";
 import { API_BASE_URL } from "../config";
@@ -99,9 +98,6 @@ export default function LandingPage() {
           <div className="bodyImage">
             <img src={bodyBackground} alt="Background cats" />
           </div>
-          <a href="https://react.dev" target="_blank">
-            <img src={reactLogo} className="logo react" alt="React logo" />
-          </a>
         </div>
         <h1>Hello conmeo Vien</h1>
       </div>

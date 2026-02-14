@@ -31,26 +31,17 @@ export const overlayStyle: React.CSSProperties = {
 
 export const modalStyle: React.CSSProperties = {
   background: "#fff",
-  padding: 24,
+  padding: "1rem",
   borderRadius: 8,
-  width: 320,
+  width: "17rem",
   display: "flex",
   flexDirection: "column",
   gap: 12,
 };
 
 export const inputStyle: React.CSSProperties = {
-  padding: 8,
-  fontSize: 14,
+  padding: "0.75rem",
+  fontSize: "small",
 };
-
-export const authSwitchLink: React.CSSProperties = {
-  background: "none",
-  border: 0,
-  padding: 0,
-  color: "#2f6fed",
-  cursor: "pointer",
-  textAlign: "left"
-}
 
 

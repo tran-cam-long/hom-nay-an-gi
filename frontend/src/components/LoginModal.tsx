@@ -111,7 +111,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onRegister
     return (
         <div style={overlayStyle}>
             <div style={modalStyle}>
-                <h2>{mode === "login" ? "Login" : "Register"}</h2>
+                <h4>{mode === "login" ? "Login" : "Register"}</h4>
 
                 <input
                     name="username"

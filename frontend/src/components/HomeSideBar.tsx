@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { TOP_BAR_HEIGHT } from "./style";
 import "./HomeSideBar.css";
-import { LuHouse, LuLayoutPanelLeft, LuSettings, LuUtensils } from "react-icons/lu";
+import { LuHouse, LuMenu, LuSettings, LuUtensils } from "react-icons/lu";
 import type { IconType } from "react-icons";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   onToggle: () => void;
 }
 
-export const EXPANDED_SIDEBAR_WIDTH = 240;
+export const EXPANDED_SIDEBAR_WIDTH = 150;
 export const COLLAPSED_SIDEBAR_WIDTH = 40;
 
 export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) {
@@ -50,7 +50,7 @@ export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) 
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={`home-sidebar-row ${isCollapsed ? "collapsed" : ""}`}
             >
-              <LuLayoutPanelLeft />
+              <LuMenu />
             </button>
           </li>
 
