@@ -1,23 +1,24 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { LuHouse, LuSettings, LuUtensils } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import "./HomeBottomBar.css";
+import type { PageKey } from "../types/navigation";
 
 interface Props {
   username?: string;
+  activeItem: PageKey;
+  onItemSelect: (page: PageKey) => void;
 }
 
-export const HOME_BOTTOM_BAR_HEIGHT = 84;
+export const HOME_BOTTOM_BAR_HEIGHT = 50;
 
 type MenuItem = {
-  id: string;
+  id: PageKey;
   title: string;
   icon: IconType;
 };
 
-export default function HomeBottomBar({ username }: Props) {
-  const [activeItem, setActiveItem] = useState<string>("home");
-
+export default function HomeBottomBar({ username, activeItem, onItemSelect }: Props) {
   const menuItems: MenuItem[] = useMemo(
     () => [
       { id: "settings", title: "Settings", icon: LuSettings },
@@ -47,7 +48,7 @@ export default function HomeBottomBar({ username }: Props) {
                   className={`home-bottom-bar-button ${isHome ? "is-home" : ""} ${isActive ? "active" : ""}`}
                   title={item.title}
                   aria-pressed={isActive}
-                  onClick={() => setActiveItem(item.id)}
+                  onClick={() => onItemSelect(item.id)}
                 >
                   <span className="home-bottom-bar-icon-wrap">
                     <Icon className="home-bottom-bar-icon" aria-hidden />
