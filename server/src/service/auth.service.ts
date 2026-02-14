@@ -3,15 +3,17 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { LoginRequest } from '../dto/login.request';
 import { LogoutRequest } from 'src/dto/logout.request';
+import { RegisterRequest } from 'src/dto/register.request';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly backendUrl = process.env.BACKEND_URL;
 
   constructor(private readonly http: HttpService) {}
 
   async login(req: LoginRequest): Promise<any> {
-    const url = 'http://localhost:8100/homnayangi-service/api/auth/login'; // adjust to your Java service
+    const url = `${this.backendUrl}/api/auth/login`;
 
     const response = await firstValueFrom(
       this.http.post(url, req, {
@@ -29,7 +31,7 @@ export class AuthService {
   }
 
   async logout(req: LogoutRequest): Promise<any> {
-    const url = 'http://localhost:8100/homnayangi-service/api/auth/logout'; // adjust to your Java service
+    const url = `${this.backendUrl}/api/auth/logout`;
 
     const response = await firstValueFrom(
       this.http.post(url, req, {
@@ -41,5 +43,19 @@ export class AuthService {
     // or console.log(response.data);
 
     return response.data;
+  }
+
+  async register(req: RegisterRequest): Promise<void> {
+    const url = `${this.backendUrl}/api/auth/register`;
+
+    const response = await firstValueFrom(
+      this.http.post(url, req, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    this.logger.log(`Register successfully, status: ${response.status}`);
+
+    return;
   }
 }

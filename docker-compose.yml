@@ -3,7 +3,27 @@ services:
     image: camlongtran/hom-nay-an-gi-frontend:latest
     container_name: homnay_frontend
     ports:
-      - "4000:4000"
-    environment:
-      NODE_ENV: development
+      - "4000:80"
+    depends_on:
+      - server
     restart: unless-stopped
+    networks:
+      - app_net
+  
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: camlongtran/hom-nay-an-gi-service:latest
+    container_name: homnay_service
+    environment:
+      - PORT=3000
+      - BACKEND_URL=http://192.168.1.12:8100
+    expose:
+      - "3000"
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge

@@ -14,7 +14,7 @@ export const barStyle: React.CSSProperties = {
   borderBottom: "1px solid #ddd",
   boxSizing: "border-box",
   background: "#fff",
-  zIndex: 1100,
+  zIndex: 1000,
 };
 
 export const overlayStyle: React.CSSProperties = {
@@ -27,19 +27,21 @@ export const overlayStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
+  zIndex: 1200,
 };
 
 export const modalStyle: React.CSSProperties = {
   background: "#fff",
-  padding: 24,
+  padding: "1rem",
   borderRadius: 8,
-  width: 320,
+  width: "17rem",
   display: "flex",
   flexDirection: "column",
   gap: 12,
 };
 
 export const inputStyle: React.CSSProperties = {
-  padding: 8,
-  fontSize: 14,
+  padding: "0.75rem",
+  fontSize: "small",
 };
+

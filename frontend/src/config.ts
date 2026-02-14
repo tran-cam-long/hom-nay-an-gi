@@ -1,5 +1,5 @@
 type ImportMetaEnv = {
-  readonly VITE_API_URL: string;
+  readonly VITE_API_BASE_URL: string;
   readonly VITE_ENV?: string;
 };
 
@@ -9,10 +9,10 @@ declare global {
   }
 }
 
-export const API_URL = import.meta.environment.VITE_API_URL;
-export const ENV = import.meta.environment.VITE_ENV ?? 'local';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+export const ENV = import.meta.env.VITE_ENV ?? import.meta.env.MODE;
 
 export default {
-  API_URL,
+  API_BASE_URL,
   ENV,
 };

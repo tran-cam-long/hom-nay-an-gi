@@ -4,9 +4,10 @@ import { AppService } from './app.service';
 import { HttpModule } from '@nestjs/axios/dist/http.module';
 import { AuthController } from './controller/auth.controller';
 import { AuthService } from './service/auth.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [HttpModule],
+  imports: [HttpModule, ConfigModule.forRoot({ isGlobal: true })],
   controllers: [AppController, AuthController],
   providers: [AppService, AuthService],
 })

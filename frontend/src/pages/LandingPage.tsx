@@ -7,9 +7,9 @@ import HomeSideBar, {
   EXPANDED_SIDEBAR_WIDTH,
 } from "../components/HomeSideBar";
 import { TOP_BAR_HEIGHT } from "../components/style";
-import reactLogo from "../assets/react.svg";
 import bodyBackground from "../assets/conmeo_background.webp";
 import NotificationModal from "../components/NotificationModal";
+import { API_BASE_URL } from "../config";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -27,6 +27,10 @@ export default function LandingPage() {
     localStorage.setItem("refreshToken", data.refreshToken);
   };
 
+  const handleRegisterSuccess = () => {
+    setNotification({ isOpen: true, message: "Account created!" })
+  }
+
   const handleLogout = async () => {
     const refreshToken = localStorage.getItem("refreshToken");
 
@@ -41,7 +45,7 @@ export default function LandingPage() {
     try {
       const request: LogoutRequest = { refreshToken };
 
-      await fetch("http://localhost:3000/auth/logout", {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,22 +87,20 @@ export default function LandingPage() {
           transition: "transform 0.2s ease",
         }}
       >
-        <LoginModal
-          isOpen={isLoginOpen}
-          onClose={() => setIsLoginOpen(false)}
-          onLoginSuccess={handleLoginSuccess}
-        />
-
         <div>
           <div className="bodyImage">
             <img src={bodyBackground} alt="Background cats" />
           </div>
-          <a href="https://react.dev" target="_blank">
-            <img src={reactLogo} className="logo react" alt="React logo" />
-          </a>
         </div>
         <h1>Hello conmeo Vien</h1>
       </div>
+
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        onRegisterSuccess={handleRegisterSuccess}
+      />
 
       <NotificationModal
         isOpen={notification.isOpen}

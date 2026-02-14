@@ -1,0 +1,14 @@
+.auth-switch-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #2f6fed;
+  cursor: pointer;
+  text-align: left;
+  font-size: small;
+}
+
+.auth-switch-link:hover {
+  text-decoration: underline;
+  color: #2457be;
+}
