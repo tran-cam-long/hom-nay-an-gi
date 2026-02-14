@@ -29,7 +29,7 @@ export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) 
     ],
     []
   );
-  const [activeItem, setActiveItem] = useState<string | null>("Home");
+  const [activeItem, setActiveItem] = useState<string | null>("home");
 
   return (
     <aside

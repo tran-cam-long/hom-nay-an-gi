@@ -1,0 +1,84 @@
+.home-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #e5e5e5;
+  box-sizing: border-box;
+  z-index: 1000;
+}
+
+.home-bottom-bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.home-bottom-bar-item {
+  display: flex;
+  justify-content: center;
+}
+
+.home-bottom-bar-button {
+  border: 0;
+  background: transparent;
+  color: #2b2b2b;
+  border-radius: 10px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-bottom-bar-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-bottom-bar-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.home-bottom-bar-label {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.home-bottom-bar-button:hover .home-bottom-bar-icon-wrap {
+  background: #f5f5f5;
+}
+
+.home-bottom-bar-button.active .home-bottom-bar-icon-wrap {
+  background: #eeeeee;
+}
+
+.home-bottom-bar-button.is-home .home-bottom-bar-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #fff;
+  transform: translateY(-14px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.home-bottom-bar-button.is-home.active .home-bottom-bar-icon-wrap {
+  background: #f2f2f2;
+}
+
+@media (min-width: 500px) {
+  .home-bottom-bar {
+    display: none;
+  }
+}
