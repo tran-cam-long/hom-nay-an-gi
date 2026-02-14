@@ -48,4 +48,23 @@ export class DishChoiceService {
 
         return dishes;
     }
+
+    async chooseDish(accessToken: string, dishId: number): Promise<void> {
+        const url = `${this.backendUrl}/api/cuisine/rotation/choice`;
+
+        const response = await firstValueFrom(
+            this.http.post(
+                url,
+                { dishId },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    }
+                },
+            ),
+        );
+
+        return response.data;
+    }
 }
