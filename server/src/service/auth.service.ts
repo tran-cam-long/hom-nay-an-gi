@@ -4,13 +4,25 @@ import { firstValueFrom } from 'rxjs';
 import { LoginRequest } from '../dto/login.request';
 import { LogoutRequest } from 'src/dto/logout.request';
 import { RegisterRequest } from 'src/dto/register.request';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly backendUrl = process.env.BACKEND_URL;
+  private readonly backendUrl: string;
 
-  constructor(private readonly http: HttpService) {}
+  constructor(
+    private readonly http: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const backendUrl = this.configService.get<string>('BACKEND_URL');
+
+    if (!backendUrl) {
+      throw new Error('BACKEND_URL is not configured');
+    }
+
+    this.backendUrl = backendUrl;
+  }
 
   async login(req: LoginRequest): Promise<any> {
     const url = `${this.backendUrl}/api/auth/login`;
