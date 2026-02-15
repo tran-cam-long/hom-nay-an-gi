@@ -19,7 +19,7 @@ type DishItemCardProps = {
   setItemRef: (el: HTMLDivElement | null) => void;
 };
 
-const PULL_HINT_SHOW_DISTANCE = 36;
+const PULL_HINT_SHOW_DISTANCE = 120;
 const PULL_REFRESH_THRESHOLD = 96;
 
 function normalizeDishResponse(payload: unknown): DishDetails[] {
@@ -152,10 +152,10 @@ function incrementChosenDisplay(items: RecommendationItem[], dishId: number, cho
   return items.map((item) =>
     item.dish.id === dishId
       ? {
-          ...item,
-          timesChosen: item.timesChosen + 1,
-          lastChosenTime: chosenAt,
-        }
+        ...item,
+        timesChosen: item.timesChosen + 1,
+        lastChosenTime: chosenAt,
+      }
       : item,
   );
 }
