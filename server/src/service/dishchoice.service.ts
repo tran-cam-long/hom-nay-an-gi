@@ -4,6 +4,17 @@ import { firstValueFrom } from "rxjs";
 import { DishDetails } from "src/dto/dish.detail";
 import { ConfigService } from "@nestjs/config";
 
+type RecommendationItem = {
+    dish: DishDetails;
+    timesChosen: number;
+    lastChosenTime: string | null;
+};
+
+type RotationRecommendationsResponse = {
+    userFavorites: RecommendationItem[];
+    userDiscovery: RecommendationItem[];
+    userLeastOftenInTop: RecommendationItem[];
+};
 
 @Injectable()
 export class DishChoiceService {
@@ -66,5 +77,28 @@ export class DishChoiceService {
         );
 
         return response.data;
+    }
+
+    async getRotationRecommendations(accessToken: string): Promise<RotationRecommendationsResponse> {
+        const url = `${this.backendUrl}/api/cuisine/rotation/recommendations`;
+
+        const response = await firstValueFrom(
+            this.http.get(url, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+            }),
+        );
+
+        const payload = response.data ?? {};
+
+        return {
+            userFavorites: Array.isArray(payload.userFavorites) ? payload.userFavorites : [],
+            userDiscovery: Array.isArray(payload.userDiscovery) ? payload.userDiscovery : [],
+            userLeastOftenInTop: Array.isArray(payload.userLeastOftenInTop)
+                ? payload.userLeastOftenInTop
+                : [],
+        };
     }
 }

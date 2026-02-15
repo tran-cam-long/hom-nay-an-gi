@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Head, Headers, Post, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, UnauthorizedException } from "@nestjs/common";
 import { DishChoiceService } from "src/service/dishchoice.service";
 
 @Controller("dishchoice")
@@ -31,5 +31,20 @@ export class DishChoiceController {
 
         const accessToken = authorization.slice(7).trim();
         return this.dishChoiceService.chooseDish(accessToken, body.dishId);
+    }
+
+    @Get("recommendations")
+    async getRotationRecommendations(@Headers("authorization") authorization?: string) {
+        if (!authorization || !authorization.toLowerCase().startsWith("bearer ")) {
+            throw new UnauthorizedException("Missing or invalid bearer token");
+        }
+
+        const accessToken = authorization.slice(7).trim();
+
+        if (!accessToken) {
+            throw new UnauthorizedException("Missing access token");
+        }
+
+        return this.dishChoiceService.getRotationRecommendations(accessToken);
     }
 }
