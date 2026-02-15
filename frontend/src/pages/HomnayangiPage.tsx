@@ -19,8 +19,32 @@ type DishItemCardProps = {
   setItemRef: (el: HTMLDivElement | null) => void;
 };
 
-const PULL_HINT_SHOW_DISTANCE = 120;
-const PULL_REFRESH_THRESHOLD = 96;
+const PULL_HINT_SHOW_DISTANCE = 88;
+const PULL_REFRESH_THRESHOLD = 130;
+const PULL_IGNORE_THRESHOLD = 176;
+const PULL_MAX_DISTANCE = 220;
+const PULL_REFRESH_SETTLE_DISTANCE = 92;
+const PULL_GESTURE_START_DISTANCE = 10;
+
+type PullFeedbackState = "hidden" | "hint" | "armed" | "ignored" | "refreshing";
+
+function applyPullResistance(deltaY: number): number {
+  if (deltaY <= 0) return 0;
+
+  // Keep early pull responsive, then dampen to prevent jumpy large offsets.
+  if (deltaY <= 140) {
+    return deltaY * 0.62;
+  }
+
+  return 86.8 + (deltaY - 140) * 0.34;
+}
+
+function getPullFeedbackState(distance: number): PullFeedbackState {
+  if (distance >= PULL_IGNORE_THRESHOLD) return "ignored";
+  if (distance >= PULL_REFRESH_THRESHOLD) return "armed";
+  if (distance >= PULL_HINT_SHOW_DISTANCE) return "hint";
+  return "hidden";
+}
 
 function normalizeDishResponse(payload: unknown): DishDetails[] {
   if (Array.isArray(payload)) return payload as DishDetails[];
@@ -169,17 +193,57 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [armedDishId, setArmedDishId] = useState<number | null>(null);
   const [isChoosingEnabled, setIsChoosingEnabled] = useState(true);
   const [isSubmittingChoice, setIsSubmittingChoice] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
+  const [pullFeedbackState, setPullFeedbackState] = useState<PullFeedbackState>("hidden");
 
   const isMobile = useIsMobile();
   const itemRefs = useRef<Record<number, HTMLElement | null>>({});
+  const pullContentRef = useRef<HTMLDivElement | null>(null);
+  const pullSpaceRef = useRef<HTMLDivElement | null>(null);
+  const pullStartXRef = useRef(0);
   const pullStartYRef = useRef(0);
   const isTrackingPullRef = useRef(false);
+  const hasPullStartedRef = useRef(false);
   const pullDistanceRef = useRef(0);
+  const pullFeedbackStateRef = useRef<PullFeedbackState>("hidden");
+  const loadingRef = useRef(false);
+  const isPullRefreshingRef = useRef(false);
 
   const discoveryDishes = discovery.map((item) => item.dish);
   const dishRows = toDishRows(discoveryDishes);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  const setPullFeedbackStateSafely = useCallback((nextState: PullFeedbackState) => {
+    if (pullFeedbackStateRef.current === nextState) return;
+    pullFeedbackStateRef.current = nextState;
+    setPullFeedbackState(nextState);
+  }, []);
+
+  const applyPullVisual = useCallback((distance: number, animate: boolean) => {
+    const nextDistance = Math.min(Math.max(distance, 0), PULL_MAX_DISTANCE);
+    pullDistanceRef.current = nextDistance;
+
+    if (pullContentRef.current) {
+      if (animate) {
+        pullContentRef.current.classList.remove("homnayangi-page__content--dragging");
+      } else {
+        pullContentRef.current.classList.add("homnayangi-page__content--dragging");
+      }
+
+      pullContentRef.current.style.transform = `translate3d(0, ${nextDistance}px, 0)`;
+    }
+
+    if (pullSpaceRef.current) {
+      pullSpaceRef.current.style.height = `${nextDistance}px`;
+    }
+  }, []);
+
+  const resetPullVisual = useCallback(() => {
+    applyPullVisual(0, true);
+    setPullFeedbackStateSafely("hidden");
+  }, [applyPullVisual, setPullFeedbackStateSafely]);
 
   const handleGetRecommendations = useCallback(async () => {
     const accessToken = localStorage.getItem("token");
@@ -190,7 +254,6 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     }
 
     setLoading(true);
-    setIsRefreshing(true);
     setError(null);
 
     try {
@@ -216,11 +279,31 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       setError(e instanceof Error ? e.message : "Cannot load recommendations right now.");
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
-      setPullDistance(0);
-      pullDistanceRef.current = 0;
     }
   }, []);
+
+  const handlePullRefresh = useCallback(async () => {
+    if (loadingRef.current || isPullRefreshingRef.current) {
+      resetPullVisual();
+      return;
+    }
+
+    isPullRefreshingRef.current = true;
+    setPullFeedbackStateSafely("refreshing");
+    applyPullVisual(PULL_REFRESH_SETTLE_DISTANCE, true);
+
+    try {
+      await handleGetRecommendations();
+    } finally {
+      isPullRefreshingRef.current = false;
+      resetPullVisual();
+    }
+  }, [
+    applyPullVisual,
+    handleGetRecommendations,
+    resetPullVisual,
+    setPullFeedbackStateSafely,
+  ]);
 
   const handleGetAll = async () => {
     const accessToken = localStorage.getItem("token");
@@ -344,23 +427,53 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
-      if (window.scrollY > 0) return;
+      if (loadingRef.current || isPullRefreshingRef.current) return;
+
+      const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      if (scrollTop > 0) return;
 
       isTrackingPullRef.current = true;
+      hasPullStartedRef.current = false;
+      pullStartXRef.current = event.touches[0].clientX;
       pullStartYRef.current = event.touches[0].clientY;
-      pullDistanceRef.current = 0;
-      setPullDistance(0);
+      applyPullVisual(0, false);
+      setPullFeedbackStateSafely("hidden");
     };
 
     const onTouchMove = (event: TouchEvent) => {
       if (!isTrackingPullRef.current) return;
+      if (event.touches.length !== 1) return;
 
+      const deltaX = event.touches[0].clientX - pullStartXRef.current;
       const deltaY = event.touches[0].clientY - pullStartYRef.current;
-      if (deltaY <= 0) return;
 
-      const nextDistance = Math.min(deltaY * 0.75, 140);
-      pullDistanceRef.current = nextDistance;
-      setPullDistance(nextDistance);
+      if (
+        !hasPullStartedRef.current &&
+        Math.abs(deltaX) < PULL_GESTURE_START_DISTANCE &&
+        Math.abs(deltaY) < PULL_GESTURE_START_DISTANCE
+      ) {
+        return;
+      }
+
+      // Let horizontal carousel swipes pass through without pull-refresh interference.
+      if (!hasPullStartedRef.current && Math.abs(deltaX) > Math.abs(deltaY)) {
+        isTrackingPullRef.current = false;
+        resetPullVisual();
+        return;
+      }
+
+      if (deltaY <= 0) {
+        isTrackingPullRef.current = false;
+        hasPullStartedRef.current = false;
+        resetPullVisual();
+        return;
+      }
+
+      hasPullStartedRef.current = true;
+
+      const nextDistance = Math.min(applyPullResistance(deltaY), PULL_MAX_DISTANCE);
+      applyPullVisual(nextDistance, false);
+      setPullFeedbackStateSafely(getPullFeedbackState(nextDistance));
 
       // Prevent browser native bounce so indicator behavior stays predictable.
       event.preventDefault();
@@ -370,13 +483,21 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       if (!isTrackingPullRef.current) return;
 
       isTrackingPullRef.current = false;
+      const hadPull = hasPullStartedRef.current;
+      hasPullStartedRef.current = false;
 
-      if (pullDistanceRef.current >= PULL_REFRESH_THRESHOLD) {
-        void handleGetRecommendations();
+      if (!hadPull) {
+        resetPullVisual();
+        return;
+      }
+
+      if (
+        pullDistanceRef.current >= PULL_REFRESH_THRESHOLD &&
+        pullDistanceRef.current < PULL_IGNORE_THRESHOLD
+      ) {
+        void handlePullRefresh();
       } else {
-        setPullDistance(0);
-        pullDistanceRef.current = 0;
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        resetPullVisual();
       }
     };
 
@@ -390,140 +511,153 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
+      resetPullVisual();
     };
-  }, [handleGetRecommendations, isMobile]);
+  }, [
+    applyPullVisual,
+    handlePullRefresh,
+    isMobile,
+    resetPullVisual,
+    setPullFeedbackStateSafely,
+  ]);
 
-  const showPullRefreshIndicator = isMobile && (pullDistance > 0 || isRefreshing);
-  const isPullRefreshArmed = pullDistance >= PULL_REFRESH_THRESHOLD;
-  const showPullRefreshLabel =
-    isRefreshing || pullDistance >= PULL_HINT_SHOW_DISTANCE || isPullRefreshArmed;
+  const showPullRefreshIndicator = isMobile && pullFeedbackState !== "hidden";
+  const isPullRefreshArmed = pullFeedbackState === "armed";
+  const isPullRefreshIgnored = pullFeedbackState === "ignored";
+  const pullRefreshLabel =
+    pullFeedbackState === "refreshing"
+      ? "Refreshing..."
+      : isPullRefreshIgnored
+        ? "Release to skip refresh"
+        : isPullRefreshArmed
+          ? "Release to refresh"
+          : "Pull to refresh";
 
   return (
     <section className="homnayangi-page">
-      {showPullRefreshIndicator && (
+      {isMobile && (
         <div
-          className={`pull-refresh-indicator ${isPullRefreshArmed ? "pull-refresh-indicator--armed" : ""} ${isRefreshing ? "pull-refresh-indicator--refreshing" : ""}`}
-          style={{ height: `${Math.max(28, pullDistance)}px` }}
+          ref={pullSpaceRef}
+          className={`pull-refresh-space ${showPullRefreshIndicator ? "pull-refresh-space--visible" : ""}`}
+          aria-hidden={!showPullRefreshIndicator}
         >
-          <MdRefresh aria-hidden />
-          {showPullRefreshLabel && (
-            <span className="pull-refresh-indicator__label">
-              {isRefreshing
-                ? "Refreshing..."
-                : isPullRefreshArmed
-                  ? "Release to refresh"
-                  : "Pull to refresh"}
-            </span>
-          )}
-        </div>
-      )}
-
-      <h2>Homnayangi</h2>
-
-      {!isChoosingEnabled && (
-        <div className="homnayangi-actions homnayangi-actions--top">
-          <button
-            type="button"
-            className="choose-again-btn"
-            onClick={() => {
-              setIsChoosingEnabled(true);
-              setArmedDishId(null);
-              setError(null);
-            }}
+          <div
+            className={`pull-refresh-indicator ${isPullRefreshArmed ? "pull-refresh-indicator--armed" : ""} ${isPullRefreshIgnored ? "pull-refresh-indicator--ignored" : ""} ${pullFeedbackState === "refreshing" ? "pull-refresh-indicator--refreshing" : ""}`}
           >
-            Choose again
-          </button>
+            <MdRefresh aria-hidden />
+            <span className="pull-refresh-indicator__label">{pullRefreshLabel}</span>
+          </div>
         </div>
       )}
 
-      {error && <p className="homnayangi-error">{error}</p>}
+      <div className="homnayangi-page__content" ref={pullContentRef}>
+        <h2>Homnayangi</h2>
 
-      <RecommendationCarousel
-        title="Most Chosen Dishes"
-        emptyMessage="No favorites yet."
-        items={favorites}
-        isMobile={isMobile}
-        armedDishId={armedDishId}
-        isChoosingEnabled={isChoosingEnabled}
-        isSubmittingChoice={isSubmittingChoice}
-        onChooseClick={handleCarouselChooseClick}
-        setItemRef={(dishId, element) => {
-          itemRefs.current[dishId] = element;
-        }}
-      />
+        {!isChoosingEnabled && (
+          <div className="homnayangi-actions homnayangi-actions--top">
+            <button
+              type="button"
+              className="choose-again-btn"
+              onClick={() => {
+                setIsChoosingEnabled(true);
+                setArmedDishId(null);
+                setError(null);
+              }}
+            >
+              Choose again
+            </button>
+          </div>
+        )}
 
-      <RecommendationCarousel
-        title="Least Often In Top"
-        emptyMessage="No least-often dishes yet."
-        items={leastOftenInTop}
-        isMobile={isMobile}
-        armedDishId={armedDishId}
-        isChoosingEnabled={isChoosingEnabled}
-        isSubmittingChoice={isSubmittingChoice}
-        onChooseClick={handleCarouselChooseClick}
-        setItemRef={(dishId, element) => {
-          itemRefs.current[dishId] = element;
-        }}
-      />
+        {error && <p className="homnayangi-error">{error}</p>}
 
-      <section className="discovery-section">
-        <h3 className="section-title">Discovery For You</h3>
+        <RecommendationCarousel
+          title="Most Chosen Dishes"
+          emptyMessage="No favorites yet."
+          items={favorites}
+          isMobile={isMobile}
+          armedDishId={armedDishId}
+          isChoosingEnabled={isChoosingEnabled}
+          isSubmittingChoice={isSubmittingChoice}
+          onChooseClick={handleCarouselChooseClick}
+          setItemRef={(dishId, element) => {
+            itemRefs.current[dishId] = element;
+          }}
+        />
 
-        <table className="dish-grid-table">
-          <tbody>
-            {dishRows.length === 0 && !loading ? (
-              <tr>
-                <td className="dish-grid-empty" colSpan={2}>
-                  No discovery dishes right now.
-                </td>
-              </tr>
-            ) : (
-              dishRows.map(([leftDish, rightDish]) => (
-                <tr key={leftDish.id}>
-                  <td className="dish-grid-cell">
-                    <DishItemCard
-                      dish={leftDish}
-                      armedDishId={armedDishId}
-                      isChoosingEnabled={isChoosingEnabled}
-                      isSubmittingChoice={isSubmittingChoice}
-                      onChooseClick={handleChooseClick}
-                      setItemRef={(el) => {
-                        itemRefs.current[leftDish.id] = el;
-                      }}
-                    />
+        <RecommendationCarousel
+          title="Least Often In Top"
+          emptyMessage="No least-often dishes yet."
+          items={leastOftenInTop}
+          isMobile={isMobile}
+          armedDishId={armedDishId}
+          isChoosingEnabled={isChoosingEnabled}
+          isSubmittingChoice={isSubmittingChoice}
+          onChooseClick={handleCarouselChooseClick}
+          setItemRef={(dishId, element) => {
+            itemRefs.current[dishId] = element;
+          }}
+        />
+
+        <section className="discovery-section">
+          <h3 className="section-title">Discovery For You</h3>
+
+          <table className="dish-grid-table">
+            <tbody>
+              {dishRows.length === 0 && !loading ? (
+                <tr>
+                  <td className="dish-grid-empty" colSpan={2}>
+                    No discovery dishes right now.
                   </td>
-                  <td className="dish-grid-cell">
-                    {rightDish ? (
+                </tr>
+              ) : (
+                dishRows.map(([leftDish, rightDish]) => (
+                  <tr key={leftDish.id}>
+                    <td className="dish-grid-cell">
                       <DishItemCard
-                        dish={rightDish}
+                        dish={leftDish}
                         armedDishId={armedDishId}
                         isChoosingEnabled={isChoosingEnabled}
                         isSubmittingChoice={isSubmittingChoice}
                         onChooseClick={handleChooseClick}
                         setItemRef={(el) => {
-                          itemRefs.current[rightDish.id] = el;
+                          itemRefs.current[leftDish.id] = el;
                         }}
                       />
-                    ) : (
-                      <div className="dish-item-card dish-item-card--placeholder" aria-hidden />
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </section>
+                    </td>
+                    <td className="dish-grid-cell">
+                      {rightDish ? (
+                        <DishItemCard
+                          dish={rightDish}
+                          armedDishId={armedDishId}
+                          isChoosingEnabled={isChoosingEnabled}
+                          isSubmittingChoice={isSubmittingChoice}
+                          onChooseClick={handleChooseClick}
+                          setItemRef={(el) => {
+                            itemRefs.current[rightDish.id] = el;
+                          }}
+                        />
+                      ) : (
+                        <div className="dish-item-card dish-item-card--placeholder" aria-hidden />
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
 
-      <div className="homnayangi-actions homnayangi-actions--bottom">
-        <button type="button" onClick={handleGetAll} disabled={loading}>
-          {loading ? "Loading..." : "Get all"}
-        </button>
-        {!isMobile && (
-          <button type="button" onClick={handleGetRecommendations} disabled={loading}>
-            {loading ? "Loading..." : "Refresh"}
+        <div className="homnayangi-actions homnayangi-actions--bottom">
+          <button type="button" onClick={handleGetAll} disabled={loading}>
+            {loading ? "Loading..." : "Get all"}
           </button>
-        )}
+          {!isMobile && (
+            <button type="button" onClick={handleGetRecommendations} disabled={loading}>
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

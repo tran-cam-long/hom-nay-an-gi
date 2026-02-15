@@ -1,5 +1,18 @@
 .homnayangi-page {
+  position: relative;
   padding: 16px;
+  overflow-x: clip;
+  overscroll-behavior-y: contain;
+}
+
+.homnayangi-page__content {
+  transform: translate3d(0, 0, 0);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.homnayangi-page__content--dragging {
+  transition: none;
 }
 
 .section-title {
@@ -34,14 +47,39 @@
   margin: 0;
 }
 
+.pull-refresh-space {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 2;
+}
+
 .pull-refresh-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  overflow: hidden;
-  transition: height 140ms ease, color 140ms ease;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.12);
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition: opacity 160ms ease, transform 180ms ease, color 140ms ease;
   color: #7a7a7a;
+}
+
+.pull-refresh-space--visible .pull-refresh-indicator {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .pull-refresh-indicator svg {
@@ -57,6 +95,10 @@
 
 .pull-refresh-indicator--armed {
   color: #1f2328;
+}
+
+.pull-refresh-indicator--ignored {
+  color: #8a5a00;
 }
 
 .pull-refresh-indicator--refreshing svg {
@@ -147,7 +189,7 @@
   left: 50%;
   bottom: 8px;
   transform: translateX(-50%);
-  width: min(120px, calc(100% - 5rem));
+  width: min(120px, calc(100% - 4rem));
   padding: 4px 8px;
   font-size: 12px;
   justify-content: center;
