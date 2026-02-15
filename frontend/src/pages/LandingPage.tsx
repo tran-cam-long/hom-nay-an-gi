@@ -69,8 +69,6 @@ export default function LandingPage() {
   const sidebarWidth = isSidebarCollapsed
     ? COLLAPSED_SIDEBAR_WIDTH
     : EXPANDED_SIDEBAR_WIDTH;
-
-  const pushX = sidebarWidth - COLLAPSED_SIDEBAR_WIDTH;
   const isMobile = useIsMobile();
 
   return (
@@ -109,9 +107,9 @@ export default function LandingPage() {
             }
             : {
               marginTop: TOP_BAR_HEIGHT,
-              width: `calc(100vw - ${COLLAPSED_SIDEBAR_WIDTH}px)`,
-              transform: `translateX(${pushX}px)`,
-              transition: "transform 0.2s ease",
+              width: `calc(100vw - ${sidebarWidth}px)`,
+              marginLeft: sidebarWidth,
+              transition: "margin-left 0.2s ease, width 0.2s ease",
             }
         }
       >
