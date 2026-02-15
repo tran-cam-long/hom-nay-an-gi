@@ -19,7 +19,8 @@ type DishItemCardProps = {
   setItemRef: (el: HTMLDivElement | null) => void;
 };
 
-const PULL_REFRESH_THRESHOLD = 72;
+const PULL_HINT_SHOW_DISTANCE = 36;
+const PULL_REFRESH_THRESHOLD = 96;
 
 function normalizeDishResponse(payload: unknown): DishDetails[] {
   if (Array.isArray(payload)) return payload as DishDetails[];
@@ -394,9 +395,29 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
   const showPullRefreshIndicator = isMobile && (pullDistance > 0 || isRefreshing);
   const isPullRefreshArmed = pullDistance >= PULL_REFRESH_THRESHOLD;
+  const showPullRefreshLabel =
+    isRefreshing || pullDistance >= PULL_HINT_SHOW_DISTANCE || isPullRefreshArmed;
 
   return (
     <section className="homnayangi-page">
+      {showPullRefreshIndicator && (
+        <div
+          className={`pull-refresh-indicator ${isPullRefreshArmed ? "pull-refresh-indicator--armed" : ""} ${isRefreshing ? "pull-refresh-indicator--refreshing" : ""}`}
+          style={{ height: `${Math.max(28, pullDistance)}px` }}
+        >
+          <MdRefresh aria-hidden />
+          {showPullRefreshLabel && (
+            <span className="pull-refresh-indicator__label">
+              {isRefreshing
+                ? "Refreshing..."
+                : isPullRefreshArmed
+                  ? "Release to refresh"
+                  : "Pull to refresh"}
+            </span>
+          )}
+        </div>
+      )}
+
       <h2>Homnayangi</h2>
 
       {!isChoosingEnabled && (
@@ -412,22 +433,6 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           >
             Choose again
           </button>
-        </div>
-      )}
-
-      {showPullRefreshIndicator && (
-        <div
-          className={`pull-refresh-indicator ${isPullRefreshArmed ? "pull-refresh-indicator--armed" : ""} ${isRefreshing ? "pull-refresh-indicator--refreshing" : ""}`}
-          style={{ height: `${Math.max(28, pullDistance)}px` }}
-        >
-          <MdRefresh aria-hidden />
-          <span className="pull-refresh-indicator__label">
-            {isRefreshing
-              ? "Refreshing..."
-              : isPullRefreshArmed
-                ? "Release to refresh"
-                : "Pull to refresh"}
-          </span>
         </div>
       )}
 

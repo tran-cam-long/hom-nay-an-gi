@@ -153,7 +153,7 @@ export default function RecommendationCarousel({
               </div>
               <div className="recommendation-card__body">
                 <div className="recommendation-card__name">{item.dish.name}</div>
-                <div className="recommendation-card__meta">Chosen: {item.timesChosen}</div>
+                <div className="recommendation-card__meta">Chosen: {item.timesChosen} time(s)</div>
                 <div className="recommendation-card__meta">
                   Last chosen: {formatLastChosen(item.lastChosenTime)}
                 </div>
