@@ -1,22 +1,31 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { TOP_BAR_HEIGHT } from "./style";
 import "./HomeSideBar.css";
 import { LuHouse, LuMenu, LuSettings, LuUtensils } from "react-icons/lu";
 import type { IconType } from "react-icons";
+import type { PageKey } from "../types/navigation";
 
 interface Props {
   username?: string;
   isCollapsed: boolean;
   onToggle: () => void;
+  activeItem: PageKey;
+  onItemSelect: (page: PageKey) => void;
 }
 
 export const EXPANDED_SIDEBAR_WIDTH = 150;
 export const COLLAPSED_SIDEBAR_WIDTH = 40;
 
-export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) {
+export default function HomeSideBar({
+  username,
+  isCollapsed,
+  onToggle,
+  activeItem,
+  onItemSelect,
+}: Props) {
   type MenuItem = {
-    id: string;
+    id: PageKey;
     title: string;
     icon: IconType;
   };
@@ -29,8 +38,6 @@ export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) 
     ],
     []
   );
-  const [activeItem, setActiveItem] = useState<string | null>("Home");
-
   return (
     <aside
       className="home-sidebar"
@@ -64,9 +71,7 @@ export default function HomeSideBar({ username, isCollapsed, onToggle }: Props) 
                   type="button"
                   className={`home-sidebar-row ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""
                     }`}
-                  onClick={() =>
-                    setActiveItem((current) => (current === item.id ? null : item.id))
-                  }
+                  onClick={() => onItemSelect(item.id)}
                   title={item.title}
                   aria-pressed={isActive}
                 >

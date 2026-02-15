@@ -6,16 +6,23 @@ import HomeSideBar, {
   COLLAPSED_SIDEBAR_WIDTH,
   EXPANDED_SIDEBAR_WIDTH,
 } from "../components/HomeSideBar";
+import HomeBottomBar, {
+  HOME_BOTTOM_BAR_HEIGHT,
+} from "../components/HomeBottomBar";
 import { TOP_BAR_HEIGHT } from "../components/style";
 import bodyBackground from "../assets/conmeo_background.webp";
 import NotificationModal from "../components/NotificationModal";
 import { API_BASE_URL } from "../config";
+import useIsMobile from "../hooks/useIsMobile";
+import type { PageKey } from "../types/navigation";
+import HomnayangiPage from "./HomnayangiPage";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loginRes, setLoginRes] = useState<LoginResponse | null>(null);
-  const [notification, setNotification] = useState<{ isOpen: boolean; message: string}> ({
+  const [activePage, setActivePage] = useState<PageKey>("home");
+  const [notification, setNotification] = useState<{ isOpen: boolean; message: string }>({
     isOpen: false,
     message: ""
   })
@@ -56,14 +63,13 @@ export default function LandingPage() {
       // Client is already logged out locally; ignore network errors.
     }
 
-    setNotification({ isOpen: true, message: "Logged out"})
+    setNotification({ isOpen: true, message: "Logged out" })
   };
 
-  const sidebarWidth = isSidebarCollapsed 
-    ? COLLAPSED_SIDEBAR_WIDTH 
+  const sidebarWidth = isSidebarCollapsed
+    ? COLLAPSED_SIDEBAR_WIDTH
     : EXPANDED_SIDEBAR_WIDTH;
-
-  const pushX = sidebarWidth - COLLAPSED_SIDEBAR_WIDTH;
+  const isMobile = useIsMobile();
 
   return (
     <div>
@@ -73,26 +79,56 @@ export default function LandingPage() {
         onLogoutClick={handleLogout}
       />
 
-      <HomeSideBar
-        username={loginRes?.username}
-        isCollapsed={isSidebarCollapsed}
-        onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
-      />
+      {!isMobile && (
+        <HomeSideBar
+          username={loginRes?.username}
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+          activeItem={activePage}
+          onItemSelect={setActivePage}
+        />
+      )}
+
+      {isMobile && (
+        <HomeBottomBar
+          username={loginRes?.username}
+          activeItem={activePage}
+          onItemSelect={setActivePage}
+        />
+      )}
 
       <div
-        style={{
-          marginTop: TOP_BAR_HEIGHT,
-          width: `calc(100vw - ${COLLAPSED_SIDEBAR_WIDTH}px)`,
-          transform: `translateX(${pushX}px)`,
-          transition: "transform 0.2s ease",
-        }}
+        style={
+          isMobile
+            ? {
+              marginTop: TOP_BAR_HEIGHT,
+              width: "100vw",
+              paddingBottom: HOME_BOTTOM_BAR_HEIGHT + 12,
+            }
+            : {
+              marginTop: TOP_BAR_HEIGHT,
+              width: `calc(100vw - ${sidebarWidth}px)`,
+              marginLeft: sidebarWidth,
+              transition: "margin-left 0.2s ease, width 0.2s ease",
+            }
+        }
       >
-        <div>
-          <div className="bodyImage">
-            <img src={bodyBackground} alt="Background cats" />
+        {activePage === "home" && (
+          <div>
+            <div className="bodyImage">
+              <img src={bodyBackground} alt="Background cats" />
+            </div>
           </div>
-        </div>
-        <h1>Hello conmeo Vien</h1>
+        )}
+
+        {activePage === "home" && <h1>Hello conmeo Vien</h1>}
+        {activePage === "homnayangi" && <HomnayangiPage onNotify={(message) => setNotification({ isOpen: true, message })} />}
+        {activePage === "settings" && (
+          <section style={{ padding: 16 }}>
+            <h2>Settings</h2>
+            <p>Settings page is not implemented yet.</p>
+          </section>
+        )}
       </div>
 
       <LoginModal
@@ -106,7 +142,7 @@ export default function LandingPage() {
         isOpen={notification.isOpen}
         message={notification.message}
         durationMs={5000}
-        onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))} 
+        onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

@@ -28,7 +28,7 @@ export default function NotificationModal({
             clearTimeout(closeTimer);
             clearTimeout(unmountTimer);
         };
-    }, [open, durationMs, onClose, message]);
+    }, [isOpen, durationMs, onClose, message]);
 
     if (!isOpen) return null;
 
