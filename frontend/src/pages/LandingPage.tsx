@@ -16,6 +16,7 @@ import { API_BASE_URL } from "../config";
 import useIsMobile from "../hooks/useIsMobile";
 import type { PageKey } from "../types/navigation";
 import HomnayangiPage from "./HomnayangiPage";
+import MultiplayerConnectionProvider from "../multiplayer/MultiplayerConnectionProvider";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -72,78 +73,83 @@ export default function LandingPage() {
   const isMobile = useIsMobile();
 
   return (
-    <div>
-      <TopBar
-        username={loginRes?.username}
-        onLoginClick={() => setIsLoginOpen(true)}
-        onLogoutClick={handleLogout}
-      />
-
-      {!isMobile && (
-        <HomeSideBar
+    <MultiplayerConnectionProvider
+      accessToken={loginRes?.token}
+      username={loginRes?.username}
+    >
+      <div>
+        <TopBar
           username={loginRes?.username}
-          isCollapsed={isSidebarCollapsed}
-          onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
-          activeItem={activePage}
-          onItemSelect={setActivePage}
+          onLoginClick={() => setIsLoginOpen(true)}
+          onLogoutClick={handleLogout}
         />
-      )}
 
-      {isMobile && (
-        <HomeBottomBar
-          username={loginRes?.username}
-          activeItem={activePage}
-          onItemSelect={setActivePage}
-        />
-      )}
+        {!isMobile && (
+          <HomeSideBar
+            username={loginRes?.username}
+            isCollapsed={isSidebarCollapsed}
+            onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+            activeItem={activePage}
+            onItemSelect={setActivePage}
+          />
+        )}
 
-      <div
-        style={
-          isMobile
-            ? {
-              marginTop: TOP_BAR_HEIGHT,
-              width: "100vw",
-              paddingBottom: HOME_BOTTOM_BAR_HEIGHT + 12,
-            }
-            : {
-              marginTop: TOP_BAR_HEIGHT,
-              width: `calc(100vw - ${sidebarWidth}px)`,
-              marginLeft: sidebarWidth,
-              transition: "margin-left 0.2s ease, width 0.2s ease",
-            }
-        }
-      >
-        {activePage === "home" && (
-          <div>
-            <div className="bodyImage">
-              <img src={bodyBackground} alt="Background cats" />
+        {isMobile && (
+          <HomeBottomBar
+            username={loginRes?.username}
+            activeItem={activePage}
+            onItemSelect={setActivePage}
+          />
+        )}
+
+        <div
+          style={
+            isMobile
+              ? {
+                marginTop: TOP_BAR_HEIGHT,
+                width: "100vw",
+                paddingBottom: HOME_BOTTOM_BAR_HEIGHT + 12,
+              }
+              : {
+                marginTop: TOP_BAR_HEIGHT,
+                width: `calc(100vw - ${sidebarWidth}px)`,
+                marginLeft: sidebarWidth,
+                transition: "margin-left 0.2s ease, width 0.2s ease",
+              }
+          }
+        >
+          {activePage === "home" && (
+            <div>
+              <div className="bodyImage">
+                <img src={bodyBackground} alt="Background cats" />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activePage === "home" && <h1>Hello conmeo Vien</h1>}
-        {activePage === "homnayangi" && <HomnayangiPage onNotify={(message) => setNotification({ isOpen: true, message })} />}
-        {activePage === "settings" && (
-          <section style={{ padding: 16 }}>
-            <h2>Settings</h2>
-            <p>Settings page is not implemented yet.</p>
-          </section>
-        )}
+          {activePage === "home" && <h1>Hello conmeo Vien</h1>}
+          {activePage === "homnayangi" && <HomnayangiPage onNotify={(message) => setNotification({ isOpen: true, message })} />}
+          {activePage === "settings" && (
+            <section style={{ padding: 16 }}>
+              <h2>Settings</h2>
+              <p>Settings page is not implemented yet.</p>
+            </section>
+          )}
+        </div>
+
+        <LoginModal
+          isOpen={isLoginOpen}
+          onClose={() => setIsLoginOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+          onRegisterSuccess={handleRegisterSuccess}
+        />
+
+        <NotificationModal
+          isOpen={notification.isOpen}
+          message={notification.message}
+          durationMs={5000}
+          onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
+        />
       </div>
-
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        onRegisterSuccess={handleRegisterSuccess}
-      />
-
-      <NotificationModal
-        isOpen={notification.isOpen}
-        message={notification.message}
-        durationMs={5000}
-        onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
-      />
-    </div>
+    </MultiplayerConnectionProvider>
   );
 }
