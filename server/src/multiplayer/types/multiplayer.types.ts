@@ -1,7 +1,7 @@
 export type InviteStatus = "pending" | "accepted" | "expired" | "declined";
 
 export type Invite = {
-    inivetId: string;
+    inviteId: string;
     roomId: string;
     fromUsername: string;
     toUsername: string;
