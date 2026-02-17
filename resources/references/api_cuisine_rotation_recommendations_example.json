@@ -1,0 +1,695 @@
+{
+  "userFavorites": [
+    {
+      "dish": {
+        "id": 2,
+        "name": "Bún đậu",
+        "searchKeyword": "Bun dau",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/YBHjQpiK02s/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAm5C0gGIJtMoTjB6WOerKvoBEWmw",
+        "createdAt": "2026-02-14T06:23:50.113540Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T06:23:50.113541Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 2,
+      "lastChosenTime": "2026-02-14T15:08:20.340968Z"
+    },
+    {
+      "dish": {
+        "id": 1,
+        "name": "Sủi cảo",
+        "searchKeyword": "sui cao",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/wh3hNznp-oo/maxresdefault.jpg",
+        "createdAt": "2026-02-14T06:23:30.747299Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T06:23:30.747303Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 1,
+      "lastChosenTime": "2026-02-14T13:36:23.158717Z"
+    }
+  ],
+  "userDiscovery": [
+    {
+      "dish": {
+        "id": 3,
+        "name": "Bún cá",
+        "searchKeyword": "Bun ca",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/G6ANGJjMzdc/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCN8Ayu-1bl2qwbJTQseAioGVDiow",
+        "createdAt": "2026-02-14T06:25:47.712398Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T06:25:47.712399Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 4,
+        "name": "Bún riêu",
+        "searchKeyword": "Bun rieu",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/C1P1Cw9J1-I/maxresdefault.jpg",
+        "createdAt": "2026-02-14T15:10:32.337338Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T15:10:32.337345Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 5,
+        "name": "Bún mọc",
+        "searchKeyword": "Bun moc",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/smyr2SZJA-I/maxresdefault.jpg",
+        "createdAt": "2026-02-14T15:10:58.881283Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T15:10:58.881290Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 6,
+        "name": "Bún bò",
+        "searchKeyword": "Bun bo",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/A_o2qfaTgKs/maxresdefault.jpg",
+        "createdAt": "2026-02-14T15:15:45.056644Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T15:15:45.056652Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 7,
+        "name": "Mì quảng",
+        "searchKeyword": "Mi quang",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/TTWTwhV9Zx0/maxresdefault.jpg",
+        "createdAt": "2026-02-14T15:18:13.545158Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-14T15:18:13.545165Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 8,
+        "name": "Bánh canh hẹ",
+        "searchKeyword": "banh canh",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/k4PRycXzbTE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLABmvPum7KOEtujuS-WwiLYLmjUXw",
+        "createdAt": "2026-02-15T09:10:51.342279Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:10:51.342286Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 9,
+        "name": "Bánh canh cua",
+        "searchKeyword": "banh canh",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/nsjBAOgjUmw/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:11:28.333320Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:11:28.333326Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 10,
+        "name": "Bánh canh giò",
+        "searchKeyword": "banh canh",
+        "type": "Noodle",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/r6yDDhB1isc/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:11:50.689141Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:11:50.689148Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 11,
+        "name": "Bánh cuốn",
+        "searchKeyword": "banh cuon",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/jbf90F5vkzQ/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:12:48.556912Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:12:48.556919Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 12,
+        "name": "Nem nướng Nha Trang",
+        "searchKeyword": "nem nuong",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/ZE7yRAcsnw4/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:13:38.368301Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:13:38.368307Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 13,
+        "name": "Phở khô Gia Lai",
+        "searchKeyword": "pho kho",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/20-GDxHoUFQ/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLA4033MLeTezK3VB2Fs1eRHyAkY7g",
+        "createdAt": "2026-02-15T09:15:10.699093Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:15:10.699100Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 14,
+        "name": "Phở bò",
+        "searchKeyword": "pho",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/c9GfHgMk1ac/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:15:41.604510Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:15:41.604517Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 15,
+        "name": "Phở gà",
+        "searchKeyword": "pho",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/VwTEiNfep3o/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDdf0EQQafhdxp0ugr36HzsZkEMkA",
+        "createdAt": "2026-02-15T09:16:46.386826Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:16:46.386833Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 16,
+        "name": "Hủ tiếu mì",
+        "searchKeyword": "hu tieu",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/1rXuv48XzZ8/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:17:34.922646Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:17:34.922653Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 17,
+        "name": "Hủ tiếu mì bò kho",
+        "searchKeyword": "hu tieu",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/xX08CuRhdIk/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:17:56.433376Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:17:56.433383Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 18,
+        "name": "Mì bò Đài Loan",
+        "searchKeyword": "mi bo",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/9-HaRu4_zF4/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCmHXgLSENiaqVXjMQH1umPBxCWMg",
+        "createdAt": "2026-02-15T09:18:30.989457Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:18:30.989464Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 19,
+        "name": "Lẩu Hongkong",
+        "searchKeyword": "lau",
+        "type": "Hotpot",
+        "culture": "Chinese",
+        "imageUrl": "https://blog.dktcdn.net/files/lau-haidilao-3.jpg",
+        "createdAt": "2026-02-15T09:19:51.873969Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:19:51.873976Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 20,
+        "name": "Xôi mặn",
+        "searchKeyword": "xoi",
+        "type": "Rice",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/_ZWvMnyMxk8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCIqhr1I71VxyUCDJ8Pq335xBvVFA",
+        "createdAt": "2026-02-15T09:21:03.328178Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:21:03.328185Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 21,
+        "name": "Bánh căn",
+        "searchKeyword": "banh can",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/lf62ueMmaAo/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:21:41.340535Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:21:41.340542Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 22,
+        "name": "Bánh xèo",
+        "searchKeyword": "banh xeo",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/olt5tmCmAd4/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:21:58.701090Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:21:58.701096Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 23,
+        "name": "Cháo sườn",
+        "searchKeyword": "chao",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/SeO46wOrvZE/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:22:48.357095Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:22:48.357102Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 24,
+        "name": "Bún thái",
+        "searchKeyword": "bun thai",
+        "type": null,
+        "culture": "Thai",
+        "imageUrl": "https://i.ytimg.com/vi/WGsot2QL7m8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBYnPm-YiF89n4imOnnBnMABuHl0A",
+        "createdAt": "2026-02-15T09:23:28.983782Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:23:28.983788Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 25,
+        "name": "Đồ thái",
+        "searchKeyword": "nha hang",
+        "type": "Collection",
+        "culture": "Thai",
+        "imageUrl": "https://i.ytimg.com/vi/neWjNsYOFI0/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:25:03.710984Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:25:03.710991Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 26,
+        "name": "Đồ hàn",
+        "searchKeyword": "nha hang",
+        "type": "Collection",
+        "culture": "Korean",
+        "imageUrl": "https://i.ytimg.com/vi/wDzaIlwWv4k/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCy0NtFg_gET_raFvgoT0RWbSqe6Q",
+        "createdAt": "2026-02-15T09:25:52.849771Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:25:52.849777Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 27,
+        "name": "Đồ trung",
+        "searchKeyword": "nha hang",
+        "type": "Collection",
+        "culture": "Chinese",
+        "imageUrl": "https://images2.thanhnien.vn/zoom/686_429/Uploaded/landt/2022_10_26/edd053e7a05967073e48-773.jpeg",
+        "createdAt": "2026-02-15T09:26:59.117562Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:26:59.117570Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 28,
+        "name": "Mì xào giòn",
+        "searchKeyword": "nha hang",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/ZPi2wdg_he8/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:28:24.892545Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:28:24.892552Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 29,
+        "name": "Bột chiên",
+        "searchKeyword": "bot chien",
+        "type": null,
+        "culture": "Chinese",
+        "imageUrl": "https://i.ytimg.com/vi/PqZll6qmB8I/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:28:57.151756Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:28:57.151763Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 30,
+        "name": "Cơm tấm",
+        "searchKeyword": "com tam",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/h__kLq8NG2I/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDqn7vasJHB1JVJB8uobiB67rxztw",
+        "createdAt": "2026-02-15T09:29:50.250389Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:29:50.250395Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 31,
+        "name": "Tacos",
+        "searchKeyword": "tacos",
+        "type": null,
+        "culture": "Mexican",
+        "imageUrl": "https://i.ytimg.com/vi/77SMmBghOAc/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLArqrR9Bn1Tti3wsvFiy05pVXjjGg",
+        "createdAt": "2026-02-15T09:30:33.200501Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:30:33.200508Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 32,
+        "name": "Pizza",
+        "searchKeyword": "pizza",
+        "type": null,
+        "culture": "Italian",
+        "imageUrl": "https://i.ytimg.com/vi/MDX8fylSisU/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:32:16.621848Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:32:16.621854Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 33,
+        "name": "Gà rán",
+        "searchKeyword": "ga",
+        "type": "Fastfood",
+        "culture": null,
+        "imageUrl": "https://i.ytimg.com/vi/2DZT0ZK_kzY/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDDw6-e6KohLx4J1iywuiYctt31aw",
+        "createdAt": "2026-02-15T09:32:50.907519Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:32:50.907526Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 34,
+        "name": "Spaghetti",
+        "searchKeyword": "spaghetti",
+        "type": null,
+        "culture": "Italian",
+        "imageUrl": "https://i.ytimg.com/vi/y7_nfAeotwk/hqdefault.jpg",
+        "createdAt": "2026-02-15T09:33:31.455151Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:33:31.455158Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 35,
+        "name": "Lẩu chay",
+        "searchKeyword": "lau chay",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQVFmIGtcbCzRo-dxMv7-fQSbToqIgFbjpXQg&s",
+        "createdAt": "2026-02-15T09:34:13.144589Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:34:13.144596Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 36,
+        "name": "Lẩu bò",
+        "searchKeyword": "lau bo",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/ZfEYFomopGs/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:34:31.786766Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:34:31.786773Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 37,
+        "name": "Bò né / bít tết",
+        "searchKeyword": "bo ne, beefsteak",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/Bp7oLXmLE0w/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAmGjhxhB_tc4yfjvLeWgVmdeP7Cg",
+        "createdAt": "2026-02-15T09:35:41.908019Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:35:41.908026Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 38,
+        "name": "Bánh mì",
+        "searchKeyword": "banh mi",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/h5eq9yfMAKs/hqdefault.jpg",
+        "createdAt": "2026-02-15T09:36:36.755597Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:36:36.755604Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 39,
+        "name": "Nui xào",
+        "searchKeyword": "nui xao",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/OhazdED73oc/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:37:11.791881Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:37:11.791888Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 40,
+        "name": "Mì trộn",
+        "searchKeyword": "mi tron",
+        "type": null,
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/VKB8CZqS0hI/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:38:18.295698Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:38:18.295704Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 41,
+        "name": "Quán ốc",
+        "searchKeyword": "hai san, oc",
+        "type": "Collection",
+        "culture": "Vietnamese",
+        "imageUrl": "https://down-vn.img.susercontent.com/vn-11134259-7r98o-lw8bm945zg7v1e@resize_ss535x300",
+        "createdAt": "2026-02-15T09:39:32.750445Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:39:32.750451Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 42,
+        "name": "Súp cua",
+        "searchKeyword": "sup cua",
+        "type": "Soup",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/8eBq1lCZ5l8/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:40:01.012603Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:40:01.012610Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    },
+    {
+      "dish": {
+        "id": 43,
+        "name": "Cơm gà xối mỡ",
+        "searchKeyword": "com ga",
+        "type": "Rice",
+        "culture": "Vietnamese",
+        "imageUrl": "https://i.ytimg.com/vi/P0NgzDow6jk/maxresdefault.jpg",
+        "createdAt": "2026-02-15T09:41:02.631503Z",
+        "createdBy": "System",
+        "updatedAt": "2026-02-15T09:41:02.631510Z",
+        "updatedBy": "System"
+      },
+      "timesChosen": 0,
+      "lastChosenTime": null
+    }
+  ],
+  "userLeastOftenInTop": []
+}
