@@ -47,22 +47,39 @@ export class MultiplayerGateway
 
   handleConnection(client: Socket): void {
     const username = this.getUsernameFromHandshake(client);
-    if (username === null || username === "") {
-      this.handleDisconnect(client);
+    if (!username) {
+      this.logger.warn(`Rejected socket without username: ${client.id}`);
+      client.disconnect(true);
       return;
     }
 
+    let socketIds = this.store.userSockets.get(username);
+    if (!socketIds) {
+      socketIds = new Set<string>();
+      this.store.userSockets.set(username, socketIds);
+    }
+    socketIds.add(client.id);
+
     this.store.socketUser.set(client.id, username);
-
-    const userSocketsIds = this.store.userSockets.get(username);
-
-
-
     this.logger.log(`Socket connected: ${client.id} (${username})`);
   }
 
   handleDisconnect(client: Socket): void {
+    const username = this.store.socketUser.get(client.id);
     this.store.socketUser.delete(client.id);
+
+    if (!username) {
+      this.logger.log(`Socket disconnected: ${client.id}`);
+      return;
+    }
+
+    const socketIds = this.store.userSockets.get(username);
+    if (socketIds) {
+      socketIds.delete(client.id);
+      if (socketIds.size === 0) {
+        this.store.userSockets.delete(username);
+      }
+    }
 
     this.logger.log(`Socket disconnected: ${client.id}`);
   }
@@ -89,7 +106,7 @@ export class MultiplayerGateway
       return;
     }
 
-    const targetSockets = this.store.userSockers.get(toUsername);
+    const targetSockets = this.store.userSockets.get(toUsername);
     if (!targetSockets || targetSockets.size === 0) {
       client.emit("error", { code: "USER_OFFLINE", message: "Target user is offline." });
       return;
