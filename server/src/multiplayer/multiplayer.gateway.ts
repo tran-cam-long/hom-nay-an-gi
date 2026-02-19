@@ -10,9 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MultiplayerStore } from './services/multiplayer.store';
-import { Invite } from './types/multiplayer.types';
-import type { InviteSendPayload } from './dto/multiplayer.events';
-import { from } from 'rxjs';
+import { Invite, RoomState } from './types/multiplayer.types';
+import type { InviteAcceptPayload, InviteSendPayload } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
 
 const DEFAULT_WS_CORS_ORIGINS = [
@@ -139,6 +138,57 @@ export class MultiplayerGateway
     }
   }
 
+  @SubscribeMessage("inivite.accept")
+  handleInviteAccept(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: InviteAcceptPayload,
+  ) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", {
+        code: "UNAUTHENTICATED", message: "Socket is not registered."
+      });
+    }
+
+    const invite = this.store.invites.get(payload?.inviteId ?? "");
+    if (!invite) {
+      client.emit("error", { code: "INVITE_NOT_FOUND", message: "Invite does not exist." });
+      return;
+    }
+
+    if (invite.toUsername !== username) {
+      client.emit("error", { code: "FORBIDDEN", message: "This invite is not for you" });
+      return;
+    }
+
+    if (invite.status !== "pending") {
+      client.emit("error", { code: "INVITE_INVALID", message: `Invite is ${invite.status}` });
+      return;
+    }
+
+    if (new Date(invite.expiresAt).getTime() <= Date.now()) {
+      invite.status = "expired";
+      this.store.invites.set(invite.inviteId, invite);
+      client.emit("error", { code: "INVITE_EXPIRED", message: "Invite has expired." });
+      return;
+    }
+
+    invite.status = "accepted";
+    this.store.invites.set(invite.inviteId, invite);
+
+    const timer = this.store.inviteTimers.get(invite.inviteId);
+    if (timer) {
+      clearTimeout(timer);
+      this.store.inviteTimers.delete(invite.inviteId);
+    }
+
+    const room: RoomState = this.createLobbyRoom(invite.roomId, invite.fromUsername, invite.toUsername);
+    this.store.rooms.set(room.roomId, room);
+    this.store.userToRoom.set(invite.fromUsername, room.roomId);
+    this.store.userToRoom.set(invite.toUsername, room.roomId);
+    this.emitRoomToUsers(room);
+  }
+
   private getUsernameFromHandshake(client: Socket): string | null {
     const value = client.handshake.auth?.username;
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -181,5 +231,18 @@ export class MultiplayerGateway
         },
       ],
     };
+  }
+
+  private emitRoomToUsers(room: RoomState): void {
+    const usernames = room.members.map((m) => m.username);
+
+    for (const uname of usernames) {
+      const socketIds = this.store.userSockets.get(uname);
+      if (!socketIds) continue;
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("room.joined", { roomState: room });
+        this.server.to(socketId).emit("room.updated", { roomState: room });
+      }
+    }
   }
 }
