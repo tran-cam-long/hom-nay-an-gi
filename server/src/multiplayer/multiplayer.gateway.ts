@@ -157,4 +157,29 @@ export class MultiplayerGateway
 
     this.store.inviteTimers.set(inviteId, timeout);
   }
+
+  private createLobbyRoom(roomId: string, inviter: string, invitee: string) {
+    return {
+      roomId,
+      status: "lobby" as const,
+      selectedGame: "rps" as const,
+      hostUsername: inviter,
+      members: [
+        {
+          username: inviter,
+          isHost: true,
+          hasChosenDish: false,
+          isConnected: true,
+          isEliminated: false,
+        },
+        {
+          username: invitee,
+          isHost: false,
+          hasChosenDish: false,
+          isConnected: true,
+          isEliminated: false,
+        },
+      ],
+    };
+  }
 }
