@@ -78,6 +78,7 @@ export class MultiplayerGateway
       socketIds.delete(client.id);
       if (socketIds.size === 0) {
         this.store.userSockets.delete(username);
+        this.markUserDisconnectedInRoom(username);
       }
     }
 
