@@ -7,6 +7,7 @@ import { AuthService } from './service/auth.service';
 import { ConfigModule } from '@nestjs/config';
 import { DishChoiceController } from './controller/dishchoice.controller';
 import { DishChoiceService } from './service/dishchoice.service';
+import { MultiplayerModule } from './multiplayer/multiplayer.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DishChoiceService } from './service/dishchoice.service';
         "server/.env",
       ],
     }),
+    MultiplayerModule,
   ],
   controllers: [AppController, AuthController, DishChoiceController],
   providers: [AppService, AuthService, DishChoiceService],
