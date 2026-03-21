@@ -13,6 +13,7 @@ import { MultiplayerStore } from './services/multiplayer.store';
 import { Invite, RoomState } from './types/multiplayer.types';
 import type { InviteAcceptPayload, InviteSendPayload } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
+import { SocketAddress } from 'net';
 
 const DEFAULT_WS_CORS_ORIGINS = [
   'http://localhost:4000',
@@ -138,7 +139,7 @@ export class MultiplayerGateway
     }
   }
 
-  @SubscribeMessage("inivite.accept")
+  @SubscribeMessage("invite.accept")
   handleInviteAccept(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: InviteAcceptPayload,
@@ -170,6 +171,11 @@ export class MultiplayerGateway
       invite.status = "expired";
       this.store.invites.set(invite.inviteId, invite);
       client.emit("error", { code: "INVITE_EXPIRED", message: "Invite has expired." });
+      return;
+    }
+
+    if (this.store.userToRoom.has(invite.fromUsername)) {
+      client.emit("error", { code: "ALREADY_IN_ROOM", message: "You are already in a room." });
       return;
     }
 
@@ -241,6 +247,32 @@ export class MultiplayerGateway
       if (!socketIds) continue;
       for (const socketId of socketIds) {
         this.server.to(socketId).emit("room.joined", { roomState: room });
+        this.server.to(socketId).emit("room.updated", { roomState: room });
+      }
+    }
+  }
+
+  private markUserDisconnectedInRoom(username: string): void {
+    const roomId = this.store.userToRoom.get(username);
+    if (!roomId) return;
+
+    const room = this.store.rooms.get(roomId);
+    if (!room) return;
+
+    const member = room.members.find((item) => item.username === username);
+    if (!member || !member.isConnected) return;
+
+    member.isConnected = false;
+    this.store.rooms.set(roomId, room);
+    this.emitRoomToUsers(room);
+  }
+
+  private emitRoomUpdated(room: RoomState): void {
+    for (const member of room.members) {
+      const socketIds = this.store.userSockets.get(member.username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
         this.server.to(socketId).emit("room.updated", { roomState: room });
       }
     }
