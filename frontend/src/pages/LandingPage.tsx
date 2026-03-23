@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { LoginResponse, LogoutRequest } from "../types/auth";
+import { useEffect, useState } from "react";
+import type { AuthMeResponse, AuthSession, LoginResponse, LogoutRequest } from "../types/auth";
 import TopBar from "../components/TopBar";
 import LoginModal from "../components/LoginModal";
 import HomeSideBar, {
@@ -21,15 +21,68 @@ import MultiplayerConnectionProvider from "../multiplayer/MultiplayerConnectionP
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [loginRes, setLoginRes] = useState<LoginResponse | null>(null);
+  const [loginRes, setLoginRes] = useState<AuthSession | null>(null);
   const [activePage, setActivePage] = useState<PageKey>("home");
   const [notification, setNotification] = useState<{ isOpen: boolean; message: string }>({
     isOpen: false,
     message: ""
-  })
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    if (!token) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const bootstrapSession = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Session bootstrap failed");
+        }
+
+        const session: AuthMeResponse = await response.json();
+
+        if (!isCancelled) {
+          setLoginRes({
+            ...session,
+            token,
+            refreshToken,
+          });
+        }
+      } catch {
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+
+        if (!isCancelled) {
+          setLoginRes(null);
+        }
+      }
+    };
+
+    void bootstrapSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const handleLoginSuccess = (data: LoginResponse) => {
-    setLoginRes(data);
+    setLoginRes({
+      userId: data.userId,
+      username: data.username,
+      token: data.token,
+      refreshToken: data.refreshToken,
+    });
 
     localStorage.setItem("token", data.token);
     localStorage.setItem("refreshToken", data.refreshToken);
@@ -53,7 +106,7 @@ export default function LandingPage() {
     try {
       const request: LogoutRequest = { refreshToken };
 
-      await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

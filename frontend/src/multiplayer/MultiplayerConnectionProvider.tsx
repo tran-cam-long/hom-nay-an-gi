@@ -27,7 +27,14 @@ export default function MultiplayerConnectionProvider({
     const socket = createMultiplayerSocket({ accessToken, username });
     socketRef.current = socket;
 
+    const handleConnect = () => {
+      socket.emit("room.sync");
+    };
+
+    socket.on("connect", handleConnect);
+
     return () => {
+      socket.off("connect", handleConnect);
       socket.disconnect();
 
       if (socketRef.current === socket) {

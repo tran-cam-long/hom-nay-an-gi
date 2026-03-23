@@ -13,7 +13,6 @@ import { MultiplayerStore } from './services/multiplayer.store';
 import { Invite, RoomState } from './types/multiplayer.types';
 import type { InviteAcceptPayload, InviteSendPayload } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
-import { SocketAddress } from 'net';
 
 const DEFAULT_WS_CORS_ORIGINS = [
   'http://localhost:4000',
@@ -194,6 +193,38 @@ export class MultiplayerGateway
     this.store.userToRoom.set(invite.fromUsername, room.roomId);
     this.store.userToRoom.set(invite.toUsername, room.roomId);
     this.emitRoomToUsers(room);
+  }
+
+  @SubscribeMessage("room.sync")
+  handleRoomSync(@ConnectedSocket() client: Socket) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", {
+        code: "UNAUTHENTICATED",
+        message: "Socket is not registered.",
+      });
+      return;
+    }
+
+    const roomId = this.store.userToRoom.get(username);
+    if (!roomId) {
+      return;
+    }
+
+    const room = this.store.rooms.get(roomId);
+    if (!room) {
+      return;
+    }
+
+    const member = room.members.find((item) => item.username === username);
+    if (member && !member.isConnected) {
+      member.isConnected = true;
+      this.store.rooms.set(roomId, room);
+      this.emitRoomUpdated(room);
+      return;
+    }
+
+    client.emit("room.updated", { roomState: room });
   }
 
   private getUsernameFromHandshake(client: Socket): string | null {
