@@ -1,5 +1,6 @@
 import { LuLogOut } from "react-icons/lu";
 import { barStyle } from "./style";
+import useMultiplayer from "../multiplayer/useMultiplayer";
 
 interface Props {
   username?: string;
@@ -8,6 +9,9 @@ interface Props {
 }
 
 export default function TopBar({ username, onLoginClick, onLogoutClick }: Props) {
+  const { connectionStatus, notifications } = useMultiplayer();
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
+
   return (
     <div style={barStyle}>
       <div style={{ fontWeight: 600 }}>Conmeo Vien Ultility App</div>
@@ -16,6 +20,7 @@ export default function TopBar({ username, onLoginClick, onLogoutClick }: Props)
         {!username ? (
           <button onClick={onLoginClick}>Login</button>
         ) : (
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <img
               src="https://i.pravatar.cc/32"
@@ -23,6 +28,8 @@ export default function TopBar({ username, onLoginClick, onLogoutClick }: Props)
               style={{ borderRadius: "50%" }}
             />
             <span>{username}</span>
+            <span style={{ fontSize: 12, opacity: 0.7 }}>{connectionStatus}</span>
+            <span style={{ fontSize: 12, opacity: 0.7 }}>unread: {unreadCount}</span>
             <button
               onClick={onLogoutClick}
               aria-label="Logout"

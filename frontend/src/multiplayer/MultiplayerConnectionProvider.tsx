@@ -10,6 +10,10 @@ type MultiplayerConnectionProviderProps = {
   children: ReactNode;
 };
 
+function isSocketReady(socket: Socket | null): socket is Socket {
+  return Boolean(socket && socket.connected);
+}
+
 function createLocalError(code: string, message: string): MultiplayerError {
   return {
     code,
@@ -74,12 +78,26 @@ export default function MultiplayerConnectionProvider({
   const [activeRoom, setActiveRoom] = useState<RoomState | null>(null);
   const [lastError, setLastError] = useState<MultiplayerError | null>(null);
 
-  const sendInvite = (_toUsername: string) => {
-    setLastError({
-      code: "NOT_IMPLEMENTED",
-      message: "sendInvite is not implemeted yet",
-      receivedAt: new Date().toISOString(),
-    })
+  const sendInvite = (toUsername: string) => {
+    const socket = socketRef.current;
+    const trimmedUsername = toUsername.trim();
+
+    if (!trimmedUsername) {
+      setLastError(createLocalError("INVALID_INPUT", "Username is required."));
+      return;
+    }
+
+    if (!isSocketReady(socket)) {
+      setLastError(
+        createLocalError(
+          "SOCKET_NOT_READY",
+          "You are not connected to multiplayer."
+        ),
+      );
+      return;
+    }
+
+    socket.emit("invite.send", { toUsername: trimmedUsername });
   };
 
   const acceptInvite = (_inviteId: string) => {
