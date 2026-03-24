@@ -38,10 +38,10 @@ export class AuthService {
       }),
     );
 
-    // assuming Java returns: { accessToken: string, refreshToken?: string, ... }
-    const { accessToken } = response.data.token;
+    // assuming Java returns: { token: string, refreshToken?: string, ... }
+    const { token } = response.data.token;
 
-    this.logger.log(`Access token: ${accessToken}`);
+    this.logger.log(`Access token: ${token}`);
     // or console.log(accessToken);
 
     return response.data;

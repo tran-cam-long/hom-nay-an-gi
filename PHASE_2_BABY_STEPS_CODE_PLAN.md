@@ -322,249 +322,792 @@ Checkpoint:
 
 ---
 
-## 1. Create Shared Frontend Multiplayer Types
+## 1. Read This Before You Start Coding
 
-Create file: `frontend/src/types/multiplayer.ts`
+This section is here because you said you do not have React or Nest experience.
 
-Add the server-facing types first:
-1. `InviteStatus`
-2. `Invite`
-3. `RoomMember`
-4. `RoomState`
+Mental model:
+1. `multiplayer.gateway.ts` on the server is the WebSocket event hub.
+2. `MultiplayerConnectionProvider.tsx` on the frontend is the one place that owns multiplayer state.
+3. `MultiplayerContext.ts` is the shared container for that state.
+4. `useMultiplayer.ts` is the helper hook that other React components will call.
 
-Add frontend-only helper types:
-1. `MultiplayerConnectionStatus = "idle" | "connecting" | "connected" | "disconnected"`
-2. `MultiplayerNotification`
-3. `MultiplayerError`
+React ideas used in this phase:
+1. `useState(...)`
+   1. Stores UI state and triggers re-render when it changes.
+2. `useRef(...)`
+   1. Stores something mutable without causing re-render.
+   2. Perfect for `socketRef`.
+3. `useEffect(...)`
+   1. Runs side effects after render.
+   2. Also lets you clean up listeners when the component unmounts or dependencies change.
+4. `createContext(...)`
+   1. Lets a parent component provide shared values to children without prop drilling.
+5. `useContext(...)`
+   1. Lets a child component read that shared value.
 
-Suggested `MultiplayerNotification` fields:
-1. `id`
-2. `type`
-3. `message`
-4. `invite`
-5. `receivedAt`
-6. `isRead`
-7. `isExpired`
+Nest ideas used in this phase:
+1. `@WebSocketGateway(...)`
+   1. Declares a Socket.IO gateway.
+2. `@SubscribeMessage("event.name")`
+   1. Says “run this method when the client emits this event”.
+3. `@ConnectedSocket()`
+   1. Gives you the current socket client.
+4. `@MessageBody()`
+   1. Gives you the payload the client emitted.
 
-Why this step first:
-1. It prevents `any` from leaking across provider, hook, and future UI work.
-2. It makes Phase 3 much easier.
-
-Checkpoint:
-1. `yarn --cwd frontend build` or your normal frontend typecheck/build step passes.
-
----
-
-## 2. Create Context and Hook Skeletons
-
-Create file: `frontend/src/multiplayer/MultiplayerContext.ts`
-
-Create file: `frontend/src/multiplayer/useMultiplayer.ts`
-
-Expose a single context shape with:
-1. `connectionStatus`
-2. `notifications`
-3. `activeRoom`
-4. `lastError`
-5. `sendInvite(toUsername: string)`
-6. `acceptInvite(inviteId: string)`
-7. `markAllNotificationsRead()`
-
-Recommendation:
-1. Keep the context value small and stable.
-2. Do not expose raw `socket`.
-3. Force all consumers through named action methods.
-
-Checkpoint:
-1. Provider compiles even if actions are temporary no-ops.
-2. `useMultiplayer()` throws a clear error if used outside the provider.
+Rule for this whole phase:
+1. Do one numbered sub-step at a time.
+2. After each sub-step, run your build or at least save the file and read the TypeScript error list.
+3. Do not jump ahead if the current file is red.
 
 ---
 
-## 3. Upgrade `MultiplayerConnectionProvider` Into a Real State Owner
+## 2. Create Shared Frontend Multiplayer Types
 
-Update file: `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+Goal:
+1. Create one place for all multiplayer TypeScript types.
+2. Remove guessing from the provider and future UI.
 
-Current job:
-1. Connect socket.
-2. Disconnect socket.
+File:
+1. `frontend/src/types/multiplayer.ts`
 
-New job:
-1. Own multiplayer React state.
-2. Create and clean up socket listeners.
-3. Expose state/actions through context.
+### 2.1 Replace the file with this exact code
 
-Recommended local state:
-1. `connectionStatus`
-2. `notifications`
-3. `activeRoom`
-4. `lastError`
+```ts
+export type InviteStatus = "pending" | "accepted" | "expired" | "declined";
 
-Recommended refs:
-1. `socketRef`
-2. `hasConnectedOnceRef` or similar if useful for reconnect handling
+export type Invite = {
+  inviteId: string;
+  roomId: string;
+  fromUsername: string;
+  toUsername: string;
+  status: InviteStatus;
+  createdAt: string;
+  expiresAt: string;
+};
 
-Recommendation:
-1. Use `useReducer` if state updates start feeling repetitive.
-2. `useState` is also acceptable if you want to keep this phase simpler.
+export type RoomMember = {
+  username: string;
+  isHost: boolean;
+  hasChosenDish: boolean;
+  isConnected: boolean;
+  isEliminated: boolean;
+};
+
+export type RoomState = {
+  roomId: string;
+  members: RoomMember[];
+  status: "lobby" | "in_game" | "finished";
+  selectedGame: "rps" | null;
+  hostUsername: string;
+};
+
+export type MultiplayerConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnected";
+
+export type MultiplayerNotification = {
+  id: string;
+  type: string;
+  message: string;
+  invite: Invite | null;
+  receivedAt: string;
+  isRead: boolean;
+  isExpired: boolean;
+};
+
+export type MultiplayerError = {
+  code: string;
+  message: string;
+  receivedAt: string;
+};
+```
+
+### 2.2 Why these types exist
+
+1. `Invite`, `RoomMember`, and `RoomState` mirror server data.
+2. `MultiplayerNotification` is frontend state, not raw server state.
+3. `MultiplayerError` gives you a single shape for `error` and `connect_error`.
 
 Checkpoint:
-1. Login creates exactly one socket connection.
-2. Logout disconnects it and clears multiplayer state.
-3. Re-rendering the provider does not create duplicate listeners.
+1. The file saves with no TypeScript error.
 
 ---
 
-## 4. Register the Core Socket Event Listeners
+## 3. Create the React Context
 
-Inside the provider, listen for:
-1. `connect`
-2. `disconnect`
-3. `connect_error`
-4. `notification.new`
-5. `invite.expired`
-6. `room.joined`
-7. `room.updated`
-8. `error`
+Goal:
+1. Define the shape that every multiplayer consumer will read.
 
-Event handling rules:
-1. `connect`
-   1. set status to `connected`
-2. `disconnect`
-   1. set status to `disconnected`
-3. `connect_error`
-   1. set status to `disconnected`
-   2. store a normalized error message
-4. `notification.new`
-   1. prepend a new notification item
-   2. default `isRead` to `false`
-   3. default `isExpired` to `false`
-5. `invite.expired`
-   1. find matching notification by `inviteId`
-   2. mark it expired
-6. `room.joined`
-   1. replace `activeRoom`
-7. `room.updated`
-   1. replace `activeRoom`
-8. `error`
-   1. normalize payload
-   2. store it in `lastError`
+File:
+1. `frontend/src/multiplayer/MultiplayerContext.ts`
 
-Important cleanup rule:
-1. Every `socket.on(...)` added in the effect must be matched by cleanup before the next socket instance is created.
+### 3.1 Replace the file with this exact code
+
+```ts
+import { createContext } from "react";
+import type {
+  MultiplayerConnectionStatus,
+  MultiplayerError,
+  MultiplayerNotification,
+  RoomState,
+} from "../types/multiplayer";
+
+export type MultiplayerContextValue = {
+  connectionStatus: MultiplayerConnectionStatus;
+  notifications: MultiplayerNotification[];
+  activeRoom: RoomState | null;
+  lastError: MultiplayerError | null;
+  sendInvite: (toUsername: string) => void;
+  acceptInvite: (inviteId: string) => void;
+  markAllNotificationsRead: () => void;
+};
+
+export const MultiplayerContext =
+  createContext<MultiplayerContextValue | null>(null);
+```
+
+### 3.2 Why this file is small
+
+1. It only describes the contract.
+2. It does not know how sockets work.
+3. The provider will fill in the actual values later.
 
 Checkpoint:
-1. You can log in with two tabs and see notification/room events enter React state.
+1. `MultiplayerContext.ts` imports cleanly.
 
 ---
 
-## 5. Add Action Methods That Wrap Socket Emits
+## 4. Create the `useMultiplayer()` Hook
 
-Implement these actions in the provider:
-1. `sendInvite(toUsername)`
-2. `acceptInvite(inviteId)`
-3. `markAllNotificationsRead()`
+Goal:
+1. Make a safe helper so components do not call `useContext(...)` directly.
 
-Rules:
-1. If socket is missing or disconnected, fail locally with a useful error.
-2. Trim username input before emitting.
-3. Keep emit payloads aligned with backend DTO names.
+File:
+1. `frontend/src/multiplayer/useMultiplayer.ts`
 
-Emit payloads:
-1. `invite.send` -> `{ toUsername }`
-2. `invite.accept` -> `{ inviteId }`
+### 4.1 Replace the file with this exact code
 
-Why now:
-1. Phase 3 and Phase 4 should use the hook, not call `socket.emit(...)` directly.
+```ts
+import { useContext } from "react";
+import { MultiplayerContext } from "./MultiplayerContext";
+
+export function useMultiplayer() {
+  const value = useContext(MultiplayerContext);
+
+  if (!value) {
+    throw new Error(
+      "useMultiplayer must be used inside MultiplayerConnectionProvider",
+    );
+  }
+
+  return value;
+}
+
+export default useMultiplayer;
+```
+
+### 4.2 Why this hook matters
+
+1. If you call the hook outside the provider, you get a clear error immediately.
+2. Every future UI file can import one hook instead of remembering context details.
 
 Checkpoint:
-1. A temporary consumer can call these actions without importing Socket.IO APIs.
+1. The hook file has no TypeScript error.
 
 ---
 
-## 6. Hydrate Login State on App Boot
+## 5. Upgrade the Provider in Small Passes
 
-Update file: `frontend/src/pages/LandingPage.tsx`
+Goal:
+1. Turn `MultiplayerConnectionProvider` into the single source of multiplayer truth.
 
-Current issue:
-1. `loginRes` only exists in memory.
-2. Tokens are saved, but React auth state is not restored after refresh.
+File:
+1. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
 
-For MVP, add:
-1. Save `username` to `localStorage` on login.
-2. Rebuild a minimal `loginRes`-like object from local storage on initial render.
-3. Remove saved `username` on logout.
+### 5.1 Pass A: add state and context imports
 
-Important note:
-1. Do not invent fields you cannot recover.
-2. Only restore the fields actually needed by current frontend code.
+Replace the file with this version first.
+Do not add all socket listeners yet.
+
+```tsx
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { Socket } from "socket.io-client";
+import { MultiplayerContext } from "./MultiplayerContext";
+import { createMultiplayerSocket } from "./socket";
+import type {
+  MultiplayerConnectionStatus,
+  MultiplayerError,
+  MultiplayerNotification,
+  RoomState,
+} from "../types/multiplayer";
+
+type MultiplayerConnectionProviderProps = {
+  accessToken?: string;
+  username?: string;
+  children: ReactNode;
+};
+
+export default function MultiplayerConnectionProvider({
+  accessToken,
+  username,
+  children,
+}: MultiplayerConnectionProviderProps) {
+  const socketRef = useRef<Socket | null>(null);
+
+  const [connectionStatus, setConnectionStatus] =
+    useState<MultiplayerConnectionStatus>("idle");
+  const [notifications, setNotifications] = useState<MultiplayerNotification[]>(
+    [],
+  );
+  const [activeRoom, setActiveRoom] = useState<RoomState | null>(null);
+  const [lastError, setLastError] = useState<MultiplayerError | null>(null);
+
+  const sendInvite = (_toUsername: string) => {
+    setLastError({
+      code: "NOT_IMPLEMENTED",
+      message: "sendInvite is not implemented yet.",
+      receivedAt: new Date().toISOString(),
+    });
+  };
+
+  const acceptInvite = (_inviteId: string) => {
+    setLastError({
+      code: "NOT_IMPLEMENTED",
+      message: "acceptInvite is not implemented yet.",
+      receivedAt: new Date().toISOString(),
+    });
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications((current) =>
+      current.map((item) => ({ ...item, isRead: true })),
+    );
+  };
+
+  useEffect(() => {
+    if (!accessToken || !username) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+
+      setConnectionStatus("idle");
+      setNotifications([]);
+      setActiveRoom(null);
+      setLastError(null);
+      return;
+    }
+
+    setConnectionStatus("connecting");
+
+    const socket = createMultiplayerSocket({ accessToken, username });
+    socketRef.current = socket;
+
+    const handleConnect = () => {
+      socket.emit("room.sync");
+    };
+
+    socket.on("connect", handleConnect);
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.disconnect();
+
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+    };
+  }, [accessToken, username]);
+
+  return (
+    <MultiplayerContext.Provider
+      value={{
+        connectionStatus,
+        notifications,
+        activeRoom,
+        lastError,
+        sendInvite,
+        acceptInvite,
+        markAllNotificationsRead,
+      }}
+    >
+      {children}
+    </MultiplayerContext.Provider>
+  );
+}
+```
+
+What just changed:
+1. The provider now owns four pieces of state.
+2. The provider now returns a context value.
+3. The action methods are placeholders for now.
 
 Checkpoint:
-1. Refreshing the page keeps the provider connected for the same logged-in user.
+1. The provider still renders children.
+2. The code compiles before adding more complexity.
+
+### 5.2 Pass B: add tiny helper functions above the component
+
+Still in `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`, add these helper functions above `export default function ...`.
+
+```ts
+function createLocalError(code: string, message: string): MultiplayerError {
+  return {
+    code,
+    message,
+    receivedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeSocketError(payload: unknown): MultiplayerError {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const data = payload as Record<string, unknown>;
+
+    return {
+      code:
+        typeof data.code === "string" && data.code.trim()
+          ? data.code
+          : "SOCKET_ERROR",
+      message:
+        typeof data.message === "string" && data.message.trim()
+          ? data.message
+          : "Unknown socket error",
+      receivedAt: new Date().toISOString(),
+    };
+  }
+
+  return createLocalError("SOCKET_ERROR", "Unknown socket error");
+}
+
+function createNotificationFromPayload(
+  payload: unknown,
+): MultiplayerNotification {
+  const data =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {};
+
+  const invite =
+    data.invite && typeof data.invite === "object" && !Array.isArray(data.invite)
+      ? (data.invite as MultiplayerNotification["invite"])
+      : null;
+
+  return {
+    id: crypto.randomUUID(),
+    type: typeof data.type === "string" ? data.type : "unknown",
+    message:
+      typeof data.message === "string"
+        ? data.message
+        : "You have a new notification.",
+    invite,
+    receivedAt: new Date().toISOString(),
+    isRead: false,
+    isExpired: false,
+  };
+}
+```
+
+Why these helpers exist:
+1. They keep your `useEffect` smaller.
+2. They convert messy socket payloads into your clean frontend types.
+
+Checkpoint:
+1. The file still compiles after adding helper functions.
+
+### 5.3 Pass C: replace the socket effect with real listeners
+
+Inside the same provider file, replace the entire `useEffect(...)` with this version:
+
+```tsx
+useEffect(() => {
+  if (!accessToken || !username) {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    setConnectionStatus("idle");
+    setNotifications([]);
+    setActiveRoom(null);
+    setLastError(null);
+    return;
+  }
+
+  setConnectionStatus("connecting");
+
+  const socket = createMultiplayerSocket({ accessToken, username });
+  socketRef.current = socket;
+
+  const handleConnect = () => {
+    setConnectionStatus("connected");
+    setLastError(null);
+    socket.emit("room.sync");
+  };
+
+  const handleDisconnect = () => {
+    setConnectionStatus("disconnected");
+  };
+
+  const handleConnectError = (error: unknown) => {
+    setConnectionStatus("disconnected");
+    setLastError(normalizeSocketError(error));
+  };
+
+  const handleNotificationNew = (payload: unknown) => {
+    const notification = createNotificationFromPayload(payload);
+    setNotifications((current) => [notification, ...current]);
+  };
+
+  const handleInviteExpired = (payload: unknown) => {
+    const data =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    const inviteId =
+      typeof data.inviteId === "string" ? data.inviteId : null;
+
+    if (!inviteId) {
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((item) =>
+        item.invite?.inviteId === inviteId
+          ? { ...item, isExpired: true }
+          : item,
+      ),
+    );
+  };
+
+  const handleRoomJoined = (payload: unknown) => {
+    const data =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    const roomState =
+      data.roomState && typeof data.roomState === "object"
+        ? (data.roomState as RoomState)
+        : null;
+
+    if (roomState) {
+      setActiveRoom(roomState);
+    }
+  };
+
+  const handleRoomUpdated = (payload: unknown) => {
+    const data =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    const roomState =
+      data.roomState && typeof data.roomState === "object"
+        ? (data.roomState as RoomState)
+        : null;
+
+    if (roomState) {
+      setActiveRoom(roomState);
+    }
+  };
+
+  const handleSocketError = (payload: unknown) => {
+    setLastError(normalizeSocketError(payload));
+  };
+
+  socket.on("connect", handleConnect);
+  socket.on("disconnect", handleDisconnect);
+  socket.on("connect_error", handleConnectError);
+  socket.on("notification.new", handleNotificationNew);
+  socket.on("invite.expired", handleInviteExpired);
+  socket.on("room.joined", handleRoomJoined);
+  socket.on("room.updated", handleRoomUpdated);
+  socket.on("error", handleSocketError);
+
+  return () => {
+    socket.off("connect", handleConnect);
+    socket.off("disconnect", handleDisconnect);
+    socket.off("connect_error", handleConnectError);
+    socket.off("notification.new", handleNotificationNew);
+    socket.off("invite.expired", handleInviteExpired);
+    socket.off("room.joined", handleRoomJoined);
+    socket.off("room.updated", handleRoomUpdated);
+    socket.off("error", handleSocketError);
+    socket.disconnect();
+
+    if (socketRef.current === socket) {
+      socketRef.current = null;
+    }
+  };
+}, [accessToken, username]);
+```
+
+What to verify now:
+1. Logging in should connect once.
+2. Refresh should reconnect because Step `A2` restores the session.
+3. Every connect should emit `room.sync` because Step `B1` added the server handler.
+
+Checkpoint:
+1. The provider owns real state now.
+2. No duplicate listeners are added on re-render.
 
 ---
 
-## 7. Add Reconnect Resync
+## 6. Implement the Action Methods
 
-Only do this if you chose to add a resync contract in Step 0.5B.
+Goal:
+1. Components should call simple functions, not raw `socket.emit(...)`.
 
-Recommended path:
-1. On `connect`, if the client was previously connected or if you want immediate safety, emit `room.sync`.
-2. Backend responds with current `room.updated` if the user is in a room.
+File:
+1. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
 
-Why this matters:
-1. Without it, reconnect depends on some later room-changing event to repair client state.
-2. That is fragile and hard to debug.
+### 6.1 Add a helper to guard missing sockets
 
-Minimal backend logic for `room.sync`:
-1. Find username from socket.
-2. Look up `userToRoom`.
-3. If room exists, emit `room.updated` to that socket only.
+Above the component, add:
+
+```ts
+function isSocketReady(socket: Socket | null): socket is Socket {
+  return Boolean(socket && socket.connected);
+}
+```
+
+### 6.2 Replace the placeholder action methods
+
+Inside the component, replace `sendInvite`, `acceptInvite`, and `markAllNotificationsRead` with:
+
+```tsx
+const sendInvite = (toUsername: string) => {
+  const socket = socketRef.current;
+  const trimmedUsername = toUsername.trim();
+
+  if (!trimmedUsername) {
+    setLastError(createLocalError("INVALID_INPUT", "Username is required."));
+    return;
+  }
+
+  if (!isSocketReady(socket)) {
+    setLastError(
+      createLocalError(
+        "SOCKET_NOT_READY",
+        "You are not connected to multiplayer.",
+      ),
+    );
+    return;
+  }
+
+  socket.emit("invite.send", { toUsername: trimmedUsername });
+};
+
+const acceptInvite = (inviteId: string) => {
+  const socket = socketRef.current;
+
+  if (!inviteId.trim()) {
+    setLastError(createLocalError("INVALID_INPUT", "Invite ID is required."));
+    return;
+  }
+
+  if (!isSocketReady(socket)) {
+    setLastError(
+      createLocalError(
+        "SOCKET_NOT_READY",
+        "You are not connected to multiplayer.",
+      ),
+    );
+    return;
+  }
+
+  socket.emit("invite.accept", { inviteId });
+};
+
+const markAllNotificationsRead = () => {
+  setNotifications((current) =>
+    current.map((item) => ({ ...item, isRead: true })),
+  );
+};
+```
 
 Checkpoint:
-1. Simulate reconnect and verify the room state reappears without requiring a new invite or room mutation.
+1. The provider exposes usable functions now.
+2. You still have not built any real multiplayer UI, which is correct for this phase.
 
 ---
 
-## 8. Add a Tiny Read-Only Consumer for Validation
+## 7. Confirm Step 0 Code Is In Place
 
-Do not build full Phase 3 UI yet.
-Add one tiny consumer so you can verify the provider is real.
+This phase assumes these two foundation pieces already exist.
 
-Simple options:
-1. Show connection status text near the username in `TopBar`.
-2. Show raw unread invite count in `TopBar`.
-3. Add a temporary debug block on `HomnayangiPage`.
+### 7.1 Session bootstrap after refresh
 
-Recommendation:
-1. Use the smallest possible read-only indicator in `TopBar`.
+Files:
+1. `server/src/controller/auth.controller.ts`
+2. `server/src/service/auth.service.ts`
+3. `frontend/src/types/auth.ts`
+4. `frontend/src/pages/LandingPage.tsx`
 
-Why:
-1. It proves the context is wired correctly.
-2. It reduces blind debugging before Phase 3 notification UX starts.
+What should already be true:
+1. The server exposes `GET /auth/me`.
+2. `LandingPage` restores session state from token plus `/auth/me`.
+3. `MultiplayerConnectionProvider` receives `accessToken` and `username` even after refresh.
 
 Checkpoint:
-1. You can visually confirm `connected` and notification count changes from live events.
+1. Refreshing the page keeps the username visible and reconnects the socket.
+
+### 7.2 Reconnect room resync
+
+Files:
+1. `server/src/multiplayer/multiplayer.gateway.ts`
+2. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+
+What should already be true:
+1. The server handles `room.sync`.
+2. The client emits `room.sync` on every successful `connect`.
+
+Checkpoint:
+1. A reconnecting user gets `room.updated` without waiting for another room mutation.
 
 ---
 
-## 9. Stop Point Before Phase 3
+## 8. Add One Tiny Read-Only Consumer
 
-At the end of Phase 2, you should have:
-1. A single reusable multiplayer provider.
-2. A `useMultiplayer()` hook.
-3. In-memory notification state.
-4. In-memory active room state.
-5. Socket action wrappers for invite send/accept.
-6. Refresh-safe session bootstrap for current MVP.
-7. Reconnect room recovery if `room.sync` was added.
+Goal:
+1. Prove the context actually works before building full UX.
 
-You should not have yet:
-1. Final notification bell UX.
-2. Invite modal UX.
-3. Room panel UI.
-4. Host controls.
-5. Game UI.
+Recommended file:
+1. `frontend/src/components/TopBar.tsx`
+
+### 8.1 Import the hook
+
+Add:
+
+```ts
+import useMultiplayer from "../multiplayer/useMultiplayer";
+```
+
+### 8.2 Read the state near the top of the component
+
+Inside `TopBar(...)`, add:
+
+```ts
+const { connectionStatus, notifications } = useMultiplayer();
+const unreadCount = notifications.filter((item) => !item.isRead).length;
+```
+
+### 8.3 Show tiny debug text when logged in
+
+Inside the logged-in branch, add something simple like:
+
+```tsx
+<span style={{ fontSize: 12, opacity: 0.7 }}>{connectionStatus}</span>
+<span style={{ fontSize: 12, opacity: 0.7 }}>
+  unread: {unreadCount}
+</span>
+```
+
+Why this step matters:
+1. It proves the provider, context, hook, and listeners are all connected.
+2. It gives you a visual signal before you build a real notification UI.
+
+Checkpoint:
+1. You can see `connected` after login.
+2. You can see unread count increase when `notification.new` arrives.
+
+---
+
+## 9. Suggested Test Flow for a Beginner
+
+Do this manually in order.
+
+### 9.1 Test the auth bootstrap
+
+1. Log in.
+2. Confirm the top bar shows your username.
+3. Refresh the page.
+4. Confirm the username still shows.
+5. Confirm the socket reconnects.
+
+If this fails:
+1. Check `LandingPage.tsx`.
+2. Check `/auth/me`.
+3. Check browser Network tab for `GET /auth/me`.
+
+### 9.2 Test the socket connection state
+
+1. Log in.
+2. Confirm the top bar shows `connected`.
+3. Log out.
+4. Confirm the provider resets state.
+
+If this fails:
+1. Check the `connect` and `disconnect` listeners in the provider.
+
+### 9.3 Test invite notifications
+
+1. Open two browser tabs or two browsers with different users.
+2. Send an invite from user A to user B.
+3. Confirm user B gets a new unread notification in React state.
+
+If this fails:
+1. Check `notification.new` listener.
+2. Check the server emits in `multiplayer.gateway.ts`.
+
+### 9.4 Test invite expiry
+
+1. Send an invite.
+2. Wait for it to expire.
+3. Confirm the matching notification becomes `isExpired: true`.
+
+If this fails:
+1. Check the `invite.expired` listener.
+2. Check the server timer logic.
+
+### 9.5 Test room join and room update
+
+1. Accept an invite.
+2. Confirm `room.joined` sets `activeRoom`.
+3. Confirm later `room.updated` also replaces `activeRoom`.
+
+If this fails:
+1. Check the room event listeners in the provider.
+
+### 9.6 Test reconnect recovery
+
+1. Join a room.
+2. Refresh one tab.
+3. Confirm the client reconnects.
+4. Confirm `room.sync` causes the current room state to return.
+
+If this fails:
+1. Check that the frontend emits `room.sync` in `handleConnect`.
+2. Check that the server `handleRoomSync(...)` emits `room.updated`.
+
+---
+
+## 10. Stop Point Before Phase 3
+
+At the end of this phase, you should have:
+1. One socket connection per logged-in tab.
+2. Shared multiplayer types.
+3. A real `MultiplayerContext`.
+4. A real `useMultiplayer()` hook.
+5. A provider that owns:
+   1. `connectionStatus`
+   2. `notifications`
+   3. `activeRoom`
+   4. `lastError`
+6. Action methods for:
+   1. `sendInvite`
+   2. `acceptInvite`
+   3. `markAllNotificationsRead`
+7. A tiny read-only UI proof in `TopBar`.
+
+You should still not build:
+1. A polished notification bell.
+2. An invite modal.
+3. A room panel.
+4. Game controls.
+5. Any final Phase 3 UX.
 
 ---
 
@@ -572,41 +1115,50 @@ You should not have yet:
 
 Phase 2 is done when:
 1. Logging in creates exactly one socket per tab.
-2. Refreshing the page still restores enough auth state for the socket to reconnect.
-3. `notification.new` updates React state immediately.
-4. `invite.expired` updates existing notification state correctly.
-5. `room.joined` and `room.updated` both update `activeRoom`.
-6. Future UI code can call `useMultiplayer()` without touching Socket.IO directly.
-7. Reconnect restores room state if you implemented `room.sync`.
+2. Refreshing the page restores enough auth state for the socket to reconnect.
+3. `notification.new` immediately adds a notification to React state.
+4. `invite.expired` updates the matching notification.
+5. `room.joined` updates `activeRoom`.
+6. `room.updated` updates `activeRoom`.
+7. `useMultiplayer()` is the only API consumers need.
+8. Reconnect restores room state through `room.sync`.
 
 ---
 
 ## Recommended File List
 
-Likely files to create or update:
+Frontend:
 1. `frontend/src/types/multiplayer.ts`
-2. `frontend/src/multiplayer/MultiplayerContext.ts`
-3. `frontend/src/multiplayer/useMultiplayer.ts`
-4. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
-5. `frontend/src/multiplayer/socket.ts`
-6. `frontend/src/pages/LandingPage.tsx`
-7. Optional backend support:
-   1. `server/src/multiplayer/dto/multiplayer.events.ts`
-   2. `server/src/multiplayer/multiplayer.gateway.ts`
+2. `frontend/src/types/auth.ts`
+3. `frontend/src/multiplayer/MultiplayerContext.ts`
+4. `frontend/src/multiplayer/useMultiplayer.ts`
+5. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+6. `frontend/src/multiplayer/socket.ts`
+7. `frontend/src/pages/LandingPage.tsx`
+8. `frontend/src/components/TopBar.tsx`
+
+Backend:
+1. `server/src/controller/auth.controller.ts`
+2. `server/src/service/auth.service.ts`
+3. `server/src/multiplayer/multiplayer.gateway.ts`
 
 ---
 
 ## Suggested Commit Boundary
 
-If you want clean reviewable commits, split Phase 2 like this:
+If you want reviewable commits, split them like this:
 1. Commit 1:
-   1. shared frontend types
-   2. context and hook skeleton
+   1. `frontend/src/types/multiplayer.ts`
+   2. `frontend/src/multiplayer/MultiplayerContext.ts`
+   3. `frontend/src/multiplayer/useMultiplayer.ts`
 2. Commit 2:
-   1. stateful provider
-   2. socket listeners
-   3. action methods
+   1. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+   2. `frontend/src/components/TopBar.tsx`
 3. Commit 3:
-   1. auth bootstrap on refresh
-   2. optional `room.sync`
-   3. tiny validation consumer
+   1. `server/src/controller/auth.controller.ts`
+   2. `server/src/service/auth.service.ts`
+   3. `frontend/src/types/auth.ts`
+   4. `frontend/src/pages/LandingPage.tsx`
+4. Commit 4:
+   1. `server/src/multiplayer/multiplayer.gateway.ts`
+   2. reconnect verification
