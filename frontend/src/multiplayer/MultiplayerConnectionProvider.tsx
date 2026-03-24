@@ -115,13 +115,88 @@ export default function MultiplayerConnectionProvider({
     socketRef.current = socket;
 
     const handleConnect = () => {
+      setConnectionStatus("connected");
+      setLastError(null);
       socket.emit("room.sync");
     };
 
+    const handleDisconnect = () => {
+      setConnectionStatus("disconnected");
+    };
+
+    const handleConnectionError = (payload: unknown) => {
+      const notification = createNotificationFromPayload(payload);
+      setNotifications((current) => [notification, ...current]);
+    };
+
+    const handleNotificationNew = (payload: unknown) => {
+      const notification = createNotificationFromPayload(payload);
+      setNotifications((current) => [notification, ...current]);
+    }
+
+    const handleInviteExpired = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+      const inviteId = typeof data.inviteId === "string" ? data.inviteId : null;
+
+      if (!inviteId) {
+        return;
+      }
+
+      setNotifications((current) =>
+        current.map((item) => item.invite?.inviteId === inviteId
+          ? { ...item, isExpired: true } : item,))
+    };
+
+    const handleRoomJoined = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+      const roomState = data.roomState && typeof data.roomState === "object"
+        ? (data.roomState as RoomState)
+        : null;
+
+      if (roomState) {
+        setActiveRoom(roomState);
+      }
+    };
+
+    const handleRoomUpdated = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+      const roomState = data.roomState && typeof data.roomState === "object"
+        ? (data.roomState as RoomState)
+        : null;
+      if (roomState) {
+        setActiveRoom(roomState);
+      }
+    };
+
+    const handleSocketError = (payload: unknown) => {
+      setLastError(normalizeSocketError(payload));
+    }
+
     socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectionError);
+    socket.on("notification.new", handleNotificationNew);
+    socket.on("invite.expired", handleInviteExpired);
+    socket.on("room.joined", handleRoomJoined);
+    socket.on("room.updated", handleRoomUpdated);
+    socket.on("error", handleSocketError);
 
     return () => {
       socket.off("connect", handleConnect);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectionError);
+      socket.off("notification.new", handleNotificationNew);
+      socket.off("invite.expired", handleInviteExpired);
+      socket.off("room.joined", handleRoomJoined);
+      socket.off("room.updated", handleRoomUpdated);
+      socket.off("error", handleSocketError);
       socket.disconnect();
 
       if (socketRef.current === socket) {
