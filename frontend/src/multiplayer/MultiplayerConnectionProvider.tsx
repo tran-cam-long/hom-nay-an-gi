@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
 import { createMultiplayerSocket } from "./socket";
-import { MultiplayerError, RoomState, type MultiplayerConnectionStatus, type MultiplayerNotification } from "../types/multiplayer";
+import type { MultiplayerError, RoomState, MultiplayerConnectionStatus, MultiplayerNotification } from "../types/multiplayer";
 import { MultiplayerContext } from "./MultiplayerContext";
 
 type MultiplayerConnectionProviderProps = {
@@ -9,6 +9,57 @@ type MultiplayerConnectionProviderProps = {
   username?: string;
   children: ReactNode;
 };
+
+function createLocalError(code: string, message: string): MultiplayerError {
+  return {
+    code,
+    message,
+    receivedAt: new Date().toISOString(),
+  }
+}
+
+function normalizeSocketError(payload: unknown): MultiplayerError {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const data = payload as Record<string, unknown>;
+
+    return {
+      code:
+        typeof data.code === "string" && data.code.trim()
+          ? data.code
+          : "SOCKET_ERROR",
+      message:
+        typeof data.message === "string" && data.message.trim()
+          ? data.message
+          : "Unknown socket error",
+      receivedAt: new Date().toISOString(),
+    }
+  }
+
+  return createLocalError("SOCKET_ERROR", "Unknown socket error");
+}
+
+function createNotificationFromPayload(payload: unknown): MultiplayerNotification {
+  const data = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? (payload as Record<string, unknown>)
+    : {};
+
+  const invite = data.invite && typeof data.invite === "object" && !Array.isArray(data.invite)
+    ? (data.invite as MultiplayerNotification["invite"])
+    : null;
+
+  return {
+    id: crypto.randomUUID(),
+    type: typeof data.type === "string" ? data.type : "unknown",
+    message:
+      typeof data.message === "string"
+        ? data.message
+        : "You have a new notification.",
+    invite,
+    receivedAt: new Date().toISOString(),
+    isRead: false,
+    isExpired: false
+  };
+}
 
 export default function MultiplayerConnectionProvider({
   accessToken,
