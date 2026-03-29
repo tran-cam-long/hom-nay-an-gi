@@ -100,12 +100,29 @@ export default function MultiplayerConnectionProvider({
     socket.emit("invite.send", { toUsername: trimmedUsername });
   };
 
-  const acceptInvite = (_inviteId: string) => {
-    setLastError({
-      code: "NOT_IMPLEMENTED",
-      message: "acceptInvite is not implemented yet",
-      receivedAt: new Date().toISOString(),
-    })
+  const acceptInvite = (inviteId: string) => {
+    const socket = socketRef.current;
+    const trimmedInviteId = inviteId.trim();
+
+    if (!trimmedInviteId) {
+      setLastError(createLocalError("INVALID_INPUT", "Invite ID is required."));
+      return false;
+    }
+
+    if (!isSocketReady(socket)) {
+      setLastError(
+        createLocalError(
+          "SOCKET_NOT_READY",
+          "You are not connected to multiplayer."
+        ),
+      );
+
+      return false;
+    }
+
+    setLastError(null);
+    socket.emit("invite.accept", { inviteId: trimmedInviteId });
+    return true;
   };
 
   const markAllNotificationsRead = () => {
@@ -143,8 +160,8 @@ export default function MultiplayerConnectionProvider({
     };
 
     const handleConnectionError = (payload: unknown) => {
-      const notification = createNotificationFromPayload(payload);
-      setNotifications((current) => [notification, ...current]);
+      setConnectionStatus("disconnected");
+      setLastError(normalizeSocketError(payload));
     };
 
     const handleNotificationNew = (payload: unknown) => {
@@ -206,7 +223,6 @@ export default function MultiplayerConnectionProvider({
     socket.on("error", handleSocketError);
 
     return () => {
-      socket.off("connect", handleConnect);
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectionError);
