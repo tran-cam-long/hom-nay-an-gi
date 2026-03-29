@@ -9,6 +9,8 @@ import type {
   RotationRecommendationsResponse,
 } from "../types/recommendation";
 import "./HomnayangiPage.css";
+import useMultiplayer from "../multiplayer/useMultiplayer";
+import InviteModal from "../components/InviteModal";
 
 type DishItemCardProps = {
   dish: DishDetails;
@@ -194,6 +196,9 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [isChoosingEnabled, setIsChoosingEnabled] = useState(true);
   const [isSubmittingChoice, setIsSubmittingChoice] = useState(false);
   const [pullFeedbackState, setPullFeedbackState] = useState<PullFeedbackState>("hidden");
+  const { sendInvite, username: currentUsername } = useMultiplayer();
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
   const isMobile = useIsMobile();
   const itemRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -398,6 +403,19 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     }
   };
 
+  const handleInviteSubmit = async (username: string) => {
+    setIsSubmittingChoice(true);
+
+    try {
+      sendInvite(username);
+      onNotify
+    } catch (error) {
+      onNotify("Failed to send invite. Please try again.")
+    } finally {
+      setIsSubmittingChoice(false);
+    }
+  }
+
   useEffect(() => {
     if (armedDishId === null) return;
 
@@ -552,6 +570,21 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
       <div className="homnayangi-page__content" ref={pullContentRef}>
         <h2>Homnayangi</h2>
+
+        <button
+          type="button"
+          className="invite-btn"
+          onClick={() => setIsInviteModalOpen(true)}>
+          Invite
+        </button>
+
+        <InviteModal
+          isOpen={isInviteModalOpen}
+          onClose={() => setIsInviteModalOpen(false)}
+          onSubmit={handleInviteSubmit}
+          currentUsername={currentUsername}
+          isSubmitting={isSubmittingInvite}
+        />
 
         {!isChoosingEnabled && (
           <div className="homnayangi-actions homnayangi-actions--top">
