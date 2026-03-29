@@ -235,6 +235,102 @@
   pointer-events: auto;
 }
 
+.invite-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.invite-btn:hover {
+  background: #0056b3;
+}
+
+.invite-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.invite-modal {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rbga(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 400px;
+}
+
+.invite-modal h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.invite-modal label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.invite-modal input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.invite-modal input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.invite-error {
+  color: #dc3545;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.invite-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.invite-modal-actions button {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.invite-modal-actions button[type="submit"] {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.invite-modal-actions button[type="submit"]:hover {
+  background: #0056b3;
+}
+
+.invite-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .recommendation-section {
   margin-top: 16px;
 }
