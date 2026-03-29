@@ -29,7 +29,7 @@ function isJoinDisabled(
   return isExpired || pendingInviteId === inviteId;
 }
 
-export default function TopBar({ username, onLoginClick, onLogoutClick }: Props) {
+export default function TopBar({ username, onLoginClick, onLogoutClick, onOpenHomnayangi }: Props) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [pendingInviteId, setPendingInviteId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -40,6 +40,7 @@ export default function TopBar({ username, onLoginClick, onLogoutClick }: Props)
     activeRoom,
     acceptInvite,
     markAllNotificationsRead,
+    lastError
   } = useMultiplayer();
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
@@ -64,8 +65,15 @@ export default function TopBar({ username, onLoginClick, onLogoutClick }: Props)
   useEffect(() => {
     if (activeRoom && pendingInviteId) {
       setPendingInviteId(null);
+      setIsNotificationOpen(false);
     }
   }, [activeRoom, pendingInviteId]);
+
+  useEffect(() => {
+    if (lastError && pendingInviteId) {
+      setPendingInviteId(null);
+    }
+  }, [lastError, pendingInviteId]);
 
   return (
     <div style={barStyle}>
@@ -130,7 +138,63 @@ export default function TopBar({ username, onLoginClick, onLogoutClick }: Props)
                       No notification yet.
                     </div>
                   ) : (
-                    <span>Conmeo</span>
+                    <div>
+                      {notifications.map((notification) => {
+                        const inivetId = notification.invite?.inviteId ?? "";
+                        const inviteExpiresAt = notification.invite?.expiresAt ?? "";
+                        const joinDisabled = !notification.invite
+                          || isJoinDisabled(notification.isExpired, inivetId, pendingInviteId);
+
+                        return (
+                          <div
+                            key={notification.id}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 8,
+                              padding: "10px 0",
+                              borderTop: "1px solid #f0f0f0",
+                            }}>
+                            <div style={{ fontSize: 14, lineHeight: 1.4 }}>{notification.message}</div>
+
+                            {notification.invite && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignContent: "center",
+                                  gap: 8
+                                }}
+                              >
+                                <span style={{ fontSize: 12, color: "#666" }}>
+                                  {notification.isExpired ? "Expired" : getInviteTimeLeftLabel(inviteExpiresAt, nowMs)}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  disabled={joinDisabled}
+                                  onClick={() => {
+                                    if (!inivetId) {
+                                      return;
+                                    }
+
+                                    const didEmit = acceptInvite(inivetId);
+                                    if (!didEmit) {
+                                      return;
+                                    }
+
+                                    setPendingInviteId(inivetId);
+                                    setIsNotificationOpen(false);
+                                    onOpenHomnayangi();
+                                  }}>
+                                  {pendingInviteId === inivetId ? "Joining..." : "Join"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}

@@ -8,7 +8,7 @@ export type MultiplayerContextValue = {
     activeRoom: RoomState | null;
     lastError: MultiplayerError | null;
     sendInvite: (toUsername: string) => void;
-    acceptInvite: (inviteId: string) => void;
+    acceptInvite: (inviteId: string) => boolean;
     markAllNotificationsRead: () => void;
 }
 

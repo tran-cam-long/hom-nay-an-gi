@@ -106,7 +106,7 @@ export default function LandingPage() {
     try {
       const request: LogoutRequest = { refreshToken };
 
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,6 +135,7 @@ export default function LandingPage() {
           username={loginRes?.username}
           onLoginClick={() => setIsLoginOpen(true)}
           onLogoutClick={handleLogout}
+          onOpenHomnayangi={() => setActivePage("homnayangi")}
         />
 
         {!isMobile && (
