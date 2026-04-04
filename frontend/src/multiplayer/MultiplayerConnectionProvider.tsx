@@ -141,6 +141,37 @@ export default function MultiplayerConnectionProvider({
     socket.emit("game.start", { roomId: activeRoom.roomId, game });
   }, [activeRoom]);
 
+  const setRoomDishChoice = (dishId: number) => {
+    const socket = socketRef.current;
+
+    if (!activeRoom) {
+      setLastError(createLocalError("ROOM_NOT_FOUND", "You are not currently in a room."));
+      return false;
+    }
+
+    if (!Number.isFinite(dishId)) {
+      setLastError(createLocalError("INVALID_INPUT", "Dish ID is invalid."));
+      return false;
+    }
+
+    if (!isSocketReady(socket)) {
+      setLastError(
+        createLocalError(
+          "SOCKET_NOT_READY",
+          "Your are not connected to multiplayer."
+        ),
+      );
+      return false;
+    }
+
+    setLastError(null);
+    socket.emit("room.setDishChoice", {
+      roomId: activeRoom.roomId,
+      dishId,
+    });
+    return true;
+  }
+
   useEffect(() => {
     if (!accessToken || !username) {
       if (socketRef.current) {
@@ -276,7 +307,8 @@ export default function MultiplayerConnectionProvider({
         acceptInvite,
         markAllNotificationsRead,
         leaveRoom,
-        startGame
+        startGame,
+        setRoomDishChoice
       }}
     >
       {children}
