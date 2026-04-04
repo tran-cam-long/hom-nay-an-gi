@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
 import { createMultiplayerSocket } from "./socket";
 import type { MultiplayerError, RoomState, MultiplayerConnectionStatus, MultiplayerNotification } from "../types/multiplayer";
@@ -129,6 +129,18 @@ export default function MultiplayerConnectionProvider({
     setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
   };
 
+  const leaveRoom = useCallback(() => {
+    const socket = socketRef.current;
+    if (!socket || !activeRoom) return;
+    socket.emit("room.leave", { roomId: activeRoom.roomId });
+  }, [activeRoom]);
+
+  const startGame = useCallback((game: string) => {
+    const socket = socketRef.current;
+    if (!socket || !activeRoom) return;
+    socket.emit("game.start", { roomId: activeRoom.roomId, game });
+  }, [activeRoom]);
+
   useEffect(() => {
     if (!accessToken || !username) {
       if (socketRef.current) {
@@ -204,14 +216,27 @@ export default function MultiplayerConnectionProvider({
       const roomState = data.roomState && typeof data.roomState === "object"
         ? (data.roomState as RoomState)
         : null;
-      if (roomState) {
-        setActiveRoom(roomState);
+
+      if (!roomState) {
+        return;
       }
+
+      const wasHost = activeRoom?.hostUsername === username;
+      const isNowHost = roomState.hostUsername === username;
+      if (!wasHost && isNowHost) {
+        // We just became host
+        console.log("You are now the host");
+        // Could show toast here through a callback
+      }
+
+      setActiveRoom(roomState);
     };
 
     const handleSocketError = (payload: unknown) => {
       setLastError(normalizeSocketError(payload));
     }
+
+    if (!socket) return;
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
@@ -246,9 +271,12 @@ export default function MultiplayerConnectionProvider({
         notifications,
         activeRoom,
         lastError,
+        username,
         sendInvite,
         acceptInvite,
         markAllNotificationsRead,
+        leaveRoom,
+        startGame
       }}
     >
       {children}

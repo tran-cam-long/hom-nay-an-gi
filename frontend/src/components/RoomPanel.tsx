@@ -28,7 +28,7 @@ export default function RoomPanel({
             <div className="room-panel-header">
                 <div className="room-info">
                     <h3>Room</h3>
-                    <p className="room-id">ID: {room.roomId}</p>
+                    <p className="room-id">Multiplayer game room ID: {room.roomId}</p>
                 </div>
                 <button
                     type="button"

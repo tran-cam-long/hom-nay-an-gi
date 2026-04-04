@@ -1,3 +1,5 @@
+import { RouterModule } from "@nestjs/core";
+
 export type InviteStatus = "pending" | "accepted" | "expired" | "declined";
 
 export type Invite = {
@@ -24,4 +26,18 @@ export type RoomState = {
     status: "lobby" | "in_game" | "finished";
     selectedGame: "rps" | null;
     hostUsername: string;
+}
+
+export type RoomStateInternal = RoomState & {
+    dishChoicesByUsername: Record<string, number>;
+}
+
+export function toPublicRoomState(room: RoomStateInternal): RoomState {
+    return {
+        roomId: room.roomId,
+        members: room.members,
+        status: room.status,
+        selectedGame: room.selectedGame,
+        hostUsername: room.hostUsername,
+    }
 }

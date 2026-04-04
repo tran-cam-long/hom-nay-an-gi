@@ -11,6 +11,7 @@ import type {
 import "./HomnayangiPage.css";
 import useMultiplayer from "../multiplayer/useMultiplayer";
 import InviteModal from "../components/InviteModal";
+import RoomPanel from "../components/RoomPanel";
 
 type DishItemCardProps = {
   dish: DishDetails;
@@ -196,7 +197,11 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [isChoosingEnabled, setIsChoosingEnabled] = useState(true);
   const [isSubmittingChoice, setIsSubmittingChoice] = useState(false);
   const [pullFeedbackState, setPullFeedbackState] = useState<PullFeedbackState>("hidden");
-  const { sendInvite, username: currentUsername } = useMultiplayer();
+  const { activeRoom,
+    sendInvite,
+    username: currentUsername = null,
+    leaveRoom,
+    startGame } = useMultiplayer();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
@@ -212,6 +217,9 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const pullFeedbackStateRef = useRef<PullFeedbackState>("hidden");
   const loadingRef = useRef(false);
   const isPullRefreshingRef = useRef(false);
+  const prevHostUsernameRef = useRef<string | null>(null);
+  const isInRoom = activeRoom !== null;
+  const isHost = isInRoom && activeRoom.hostUsername === currentUsername;
 
   const discoveryDishes = discovery.map((item) => item.dish);
   const dishRows = toDishRows(discoveryDishes);
@@ -404,17 +412,56 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   };
 
   const handleInviteSubmit = async (username: string) => {
-    setIsSubmittingChoice(true);
+    setIsSubmittingInvite(true);
 
     try {
       sendInvite(username);
-      onNotify
+      onNotify("Invite sent!");
     } catch (error) {
-      onNotify("Failed to send invite. Please try again.")
+      onNotify("Failed to send invite. Please try again.");
     } finally {
-      setIsSubmittingChoice(false);
+      setIsSubmittingInvite(false);
     }
+  };
+
+  const getStartDisabledReason = (): string | null => {
+    if (!isInRoom || !activeRoom) return "Not in a room";
+
+    if (activeRoom?.members.length < 2) {
+      return `Need at least 2 players (${activeRoom.members.length}/2)`
+    }
+
+    const notReady = activeRoom.members.filter((member) => !member.hasChosenDish);
+    if (notReady.length > 0) {
+      return `Waiting for ${notReady.map((member) => member.username).join(", ")} to choose.`;
+    }
+
+    return null;
   }
+
+  const startDisabledReason = getStartDisabledReason();
+  const isStartDisabled = startDisabledReason !== null;
+
+  const handleStartGame = () => {
+    if (isStartDisabled || !isHost || !activeRoom) return;
+    startGame("rps"); // Phase 7 will add game selection modal
+    onNotify("Starting Rock Paper Scissors...");
+  };
+
+  const handleLeaveRoom = () => {
+    leaveRoom();
+    onNotify("Left the room");
+  }
+
+  useEffect(() => {
+    if (activeRoom && activeRoom.hostUsername !== prevHostUsernameRef.current) {
+      if (prevHostUsernameRef.current !== null) {
+        // Host changed
+        onNotify(`${activeRoom.hostUsername} is now the host`);
+      }
+      prevHostUsernameRef.current = activeRoom.hostUsername;
+    }
+  }, [activeRoom?.hostUsername, onNotify]);
 
   useEffect(() => {
     if (armedDishId === null) return;
@@ -553,6 +600,20 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
   return (
     <section className="homnayangi-page">
+      {isInRoom && activeRoom && (
+        <div className="room-panel-wrapper">
+          <RoomPanel
+            room={activeRoom}
+            currentUsername={currentUsername}
+            isHost={isHost}
+            isStartDisabled={isStartDisabled}
+            startDisabledReason={startDisabledReason}
+            onStart={handleStartGame}
+            onLeave={handleLeaveRoom}
+          />
+        </div>
+      )}
+
       {isMobile && (
         <div
           ref={pullSpaceRef}

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Invite, RoomState } from "../types/multiplayer.types";
+import { Invite, RoomState, RoomStateInternal } from "../types/multiplayer.types";
 
 @Injectable()
 export class MultiplayerStore {
@@ -11,7 +11,7 @@ export class MultiplayerStore {
 
     readonly inviteTimers = new Map<string, NodeJS.Timeout>();
 
-    readonly rooms = new Map<string, RoomState>();
+    readonly rooms = new Map<string, RoomStateInternal>();
 
     readonly userToRoom = new Map<string, string>();
 }

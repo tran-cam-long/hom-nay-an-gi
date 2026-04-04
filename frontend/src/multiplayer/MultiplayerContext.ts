@@ -7,9 +7,13 @@ export type MultiplayerContextValue = {
     notifications: MultiplayerNotification[];
     activeRoom: RoomState | null;
     lastError: MultiplayerError | null;
+    username?: string;
     sendInvite: (toUsername: string) => void;
     acceptInvite: (inviteId: string) => boolean;
     markAllNotificationsRead: () => void;
+    leaveRoom: () => void;
+    startGame: (game: string) => void;
+    setRoomDishChoice: (dishId: number) => boolean;
 }
 
 export const MultiplayerContext = createContext<MultiplayerContextValue | null>(null);

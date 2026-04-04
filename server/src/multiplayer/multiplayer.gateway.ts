@@ -10,8 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MultiplayerStore } from './services/multiplayer.store';
-import { Invite, RoomState } from './types/multiplayer.types';
-import type { InviteAcceptPayload, InviteSendPayload } from './dto/multiplayer.events';
+import { Invite, RoomStateInternal, toPublicRoomState } from './types/multiplayer.types';
+import type { InviteAcceptPayload, InviteSendPayload, RoomSetDishChoicePayload } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
 
 const DEFAULT_WS_CORS_ORIGINS = [
@@ -188,7 +188,7 @@ export class MultiplayerGateway
       this.store.inviteTimers.delete(invite.inviteId);
     }
 
-    const room: RoomState = this.createLobbyRoom(invite.roomId, invite.fromUsername, invite.toUsername);
+    const room: RoomStateInternal = this.createLobbyRoom(invite.roomId, invite.fromUsername, invite.toUsername);
     this.store.rooms.set(room.roomId, room);
     this.store.userToRoom.set(invite.fromUsername, room.roomId);
     this.store.userToRoom.set(invite.toUsername, room.roomId);
@@ -224,7 +224,59 @@ export class MultiplayerGateway
       return;
     }
 
-    client.emit("room.updated", { roomState: room });
+    client.emit("room.updated", { roomState: toPublicRoomState(room) });
+  }
+
+  @SubscribeMessage("room.setDishChoice")
+  handleRoomSetDishChoice(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RoomSetDishChoicePayload
+  ) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", { code: "UNAUTHENTICATED", message: "Socker is not registered." });
+      return;
+    }
+
+    if (!payload || !payload.roomId || !payload.dishId) {
+      client.emit("error", {
+        code: "INVALID_INPUT",
+        message: "Room set dish choice payload must be present with roomId and dishId."
+      });
+      return;
+    }
+
+    const payloadRoomId = payload.roomId;
+    const room = this.store.rooms.get(payloadRoomId);
+    if (!room) {
+      client.emit("error", {
+        code: "ROOM_NOT_FOUND",
+        message: `This roomId ${payloadRoomId} is not existing!`
+      });
+      return;
+    }
+    if (room.status !== 'lobby') {
+      client.emit("error", {
+        code: "ROOM_NOT_JOINABLE",
+        message: `This roomId ${payloadRoomId}'s status is not lobby!`
+      });
+      return;
+    }
+
+    const member = room.members.find((item) => item.username === username);
+    if (!member) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: `This username ${username} does not belong to the room!`
+      });
+      return;
+    }
+
+    const payloadDishId = payload.dishId;
+    room.dishChoicesByUsername[username] = payloadDishId;
+    member.hasChosenDish = true;
+    this.store.rooms.set(room.roomId, room);
+    this.emitRoomUpdated(room);
   }
 
   private getUsernameFromHandshake(client: Socket): string | null {
@@ -246,7 +298,7 @@ export class MultiplayerGateway
     this.store.inviteTimers.set(inviteId, timeout);
   }
 
-  private createLobbyRoom(roomId: string, inviter: string, invitee: string) {
+  private createLobbyRoom(roomId: string, inviter: string, invitee: string): RoomStateInternal {
     return {
       roomId,
       status: "lobby" as const,
@@ -268,18 +320,20 @@ export class MultiplayerGateway
           isEliminated: false,
         },
       ],
+      dishChoicesByUsername: {},
     };
   }
 
-  private emitRoomToUsers(room: RoomState): void {
+  private emitRoomToUsers(room: RoomStateInternal): void {
     const usernames = room.members.map((m) => m.username);
+    const publicRoomState = toPublicRoomState(room);
 
     for (const uname of usernames) {
       const socketIds = this.store.userSockets.get(uname);
       if (!socketIds) continue;
       for (const socketId of socketIds) {
-        this.server.to(socketId).emit("room.joined", { roomState: room });
-        this.server.to(socketId).emit("room.updated", { roomState: room });
+        this.server.to(socketId).emit("room.joined", { roomState: publicRoomState });
+        this.server.to(socketId).emit("room.updated", { roomState: publicRoomState });
       }
     }
   }
@@ -299,7 +353,7 @@ export class MultiplayerGateway
     this.emitRoomToUsers(room);
   }
 
-  private emitRoomUpdated(room: RoomState): void {
+  private emitRoomUpdated(room: RoomStateInternal): void {
     for (const member of room.members) {
       const socketIds = this.store.userSockets.get(member.username);
       if (!socketIds) continue;

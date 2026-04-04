@@ -5,3 +5,8 @@ export type InviteSendPayload = {
 export type InviteAcceptPayload = {
     inviteId: string;
 }
+
+export type RoomSetDishChoicePayload = {
+    roomId: string,
+    dishId: number;
+}
