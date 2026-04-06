@@ -201,7 +201,8 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     sendInvite,
     username: currentUsername = null,
     leaveRoom,
-    startGame } = useMultiplayer();
+    startGame,
+    setRoomDishChoice } = useMultiplayer();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
@@ -372,9 +373,7 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
     try {
       await submitChoice(dishId);
-      setArmedDishId(null);
-      setIsChoosingEnabled(false);
-      onNotify("Dish chosen!");
+      handleSetDishChoiceSuccess(dishId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Cannot submit choice right now.");
     } finally {
@@ -401,9 +400,7 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       setLeastOftenInTop((prev) => incrementChosenDisplay(prev, dishId, chosenAt));
       setDiscovery((prev) => incrementChosenDisplay(prev, dishId, chosenAt));
 
-      setArmedDishId(null);
-      setIsChoosingEnabled(false);
-      onNotify("Dish chosen!");
+      handleSetDishChoiceSuccess(dishId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Cannot submit choice right now.");
     } finally {
@@ -423,6 +420,19 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       setIsSubmittingInvite(false);
     }
   };
+
+  const handleSetDishChoiceSuccess = (dishId: number) => {
+    if (activeRoom) {
+      const didSync = setRoomDishChoice(dishId);
+      if (!didSync) {
+        onNotify("Dish saved, but room sync failed. Please refresh the room.");
+      }
+    }
+
+    setArmedDishId(null);
+    setIsChoosingEnabled(false);
+    onNotify("Dish chosen!");
+  }
 
   const getStartDisabledReason = (): string | null => {
     if (!isInRoom || !activeRoom) return "Not in a room";
