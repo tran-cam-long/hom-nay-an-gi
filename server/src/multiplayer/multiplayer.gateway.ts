@@ -11,7 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MultiplayerStore } from './services/multiplayer.store';
 import { Invite, RoomStateInternal, toPublicRoomState } from './types/multiplayer.types';
-import type { InviteAcceptPayload, InviteSendPayload, RoomSetDishChoicePayload } from './dto/multiplayer.events';
+import type { InviteAcceptPayload, InviteSendPayload, RoomLeavePayload, RoomSetDishChoicePayload } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
 
 const DEFAULT_WS_CORS_ORIGINS = [
@@ -279,6 +279,57 @@ export class MultiplayerGateway
     this.emitRoomUpdated(room);
   }
 
+  @SubscribeMessage("room.leave")
+  handleRoomLeave(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RoomLeavePayload,
+  ) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
+      return;
+    }
+
+    const roomId = payload?.roomId?.trim();
+    if (!roomId) {
+      client.emit("error", { code: "INVALID_INPUT", message: "Room ID is required." });
+      return;
+    }
+
+    const currentRoomId = this.store.userToRoom.get(username);
+    if (!currentRoomId || currentRoomId !== roomId) {
+      client.emit("error", { code: "FORBIDDEN", message: "You are not in this room." });
+      return;
+    }
+
+    const room = this.store.rooms.get(roomId);
+    if (!room) {
+      client.emit("error", { code: "ROOM_NOT_FOUND", message: "Room does not exist." });
+      return;
+    }
+
+    const wasHost = room.hostUsername === username;
+    room.members = room.members.filter((member) => member.username !== username);
+    delete room.dishChoicesByUsername[username];
+    this.store.userToRoom.delete(username);
+
+    for (const socketId of this.store.userSockets.get(username) ?? []) {
+      this.server.to(socketId).emit("room.left", { roomId });
+    }
+
+    if (room.members.length === 0) {
+      this.store.rooms.delete(roomId);
+      return;
+    }
+
+    if (wasHost) {
+      this.assignNextHost(room);
+    }
+
+    this.store.rooms.set(roomId, room);
+    this.emitRoomUpdated(room);
+  }
+
   private getUsernameFromHandshake(client: Socket): string | null {
     const value = client.handshake.auth?.username;
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -349,18 +400,35 @@ export class MultiplayerGateway
     if (!member || !member.isConnected) return;
 
     member.isConnected = false;
+
+    if (member.isHost && room.members.length > 1) {
+      this.assignNextHost(room);
+    }
+
     this.store.rooms.set(roomId, room);
     this.emitRoomToUsers(room);
   }
 
   private emitRoomUpdated(room: RoomStateInternal): void {
+    const publicRoomState = toPublicRoomState(room);
+
     for (const member of room.members) {
       const socketIds = this.store.userSockets.get(member.username);
       if (!socketIds) continue;
 
       for (const socketId of socketIds) {
-        this.server.to(socketId).emit("room.updated", { roomState: room });
+        this.server.to(socketId).emit("room.updated", { roomState: publicRoomState });
       }
     }
+  }
+
+  private assignNextHost(room: RoomStateInternal): void {
+    const nextHost = room.members.find((member) => member.isConnected) ?? room.members[0] ?? null;
+
+    room.hostUsername = nextHost ? nextHost.username : "";
+    room.members = room.members.map((member) => ({
+      ...member,
+      isHost: nextHost ? member.username === nextHost.username : false,
+    }));
   }
 }

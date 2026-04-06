@@ -267,6 +267,10 @@ export default function MultiplayerConnectionProvider({
       setLastError(normalizeSocketError(payload));
     }
 
+    const handleRoomLeft = () => {
+      setActiveRoom(null);
+    }
+
     if (!socket) return;
 
     socket.on("connect", handleConnect);
@@ -276,6 +280,7 @@ export default function MultiplayerConnectionProvider({
     socket.on("invite.expired", handleInviteExpired);
     socket.on("room.joined", handleRoomJoined);
     socket.on("room.updated", handleRoomUpdated);
+    socket.on("room.left", handleRoomLeft);
     socket.on("error", handleSocketError);
 
     return () => {
@@ -286,6 +291,7 @@ export default function MultiplayerConnectionProvider({
       socket.off("invite.expired", handleInviteExpired);
       socket.off("room.joined", handleRoomJoined);
       socket.off("room.updated", handleRoomUpdated);
+      socket.off("room.left", handleRoomLeft);
       socket.off("error", handleSocketError);
       socket.disconnect();
 

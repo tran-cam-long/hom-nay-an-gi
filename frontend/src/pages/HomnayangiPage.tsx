@@ -464,11 +464,16 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   }
 
   useEffect(() => {
-    if (activeRoom && activeRoom.hostUsername !== prevHostUsernameRef.current) {
+    if (!activeRoom) {
+      prevHostUsernameRef.current = null;
+      return;
+    }
+
+    if (activeRoom.hostUsername !== prevHostUsernameRef.current) {
       if (prevHostUsernameRef.current !== null) {
-        // Host changed
         onNotify(`${activeRoom.hostUsername} is now the host`);
       }
+
       prevHostUsernameRef.current = activeRoom.hostUsername;
     }
   }, [activeRoom?.hostUsername, onNotify]);

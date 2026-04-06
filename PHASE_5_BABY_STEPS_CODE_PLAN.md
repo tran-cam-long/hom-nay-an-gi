@@ -477,27 +477,47 @@ Checkpoint:
 
 ## 5. Implement Leave Room Handler
 
-Add the leave room functionality to multiplayer context first, then use it.
+This phase needs both sides:
+1. frontend emits `room.leave`
+2. backend actually removes the member, reassigns host if needed, and clears the leaving client out of room state
 
-In `MultiplayerConnectionProvider.tsx`, add:
+Do not stop after adding the frontend emit. The gateway work is the important part here.
 
-```tsx
-  const leaveRoom = useCallback(() => {
-    if (!socket || !activeRoom) return;
-    socket.emit("room.leave", { roomId: activeRoom.roomId });
-  }, [socket, activeRoom]);
+Files:
+1. `frontend/src/multiplayer/MultiplayerContext.ts`
+2. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+3. `frontend/src/pages/HomnayangiPage.tsx`
+4. `server/src/multiplayer/dto/multiplayer.events.ts`
+5. `server/src/multiplayer/multiplayer.gateway.ts`
+
+### 5.1 Add the shared payload type first
+
+In `server/src/multiplayer/dto/multiplayer.events.ts`, add:
+
+```ts
+export type RoomLeavePayload = {
+  roomId: string;
+};
 ```
 
-Add to context value:
+Checkpoint:
+1. The gateway handler has a typed payload instead of ad-hoc `unknown` parsing.
+
+### 5.2 Keep the frontend emit simple
+
+In `MultiplayerConnectionProvider.tsx`, keep `leaveRoom` as a thin emitter:
 
 ```tsx
-{
-  // ... existing
-  leaveRoom,
-}
+const leaveRoom = useCallback(() => {
+  const socket = socketRef.current;
+
+  if (!socket || !activeRoom) return;
+
+  socket.emit("room.leave", { roomId: activeRoom.roomId });
+}, [activeRoom]);
 ```
 
-Update `MultiplayerContext.ts`:
+Expose it through context:
 
 ```tsx
 export type MultiplayerContextValue = {
@@ -506,21 +526,238 @@ export type MultiplayerContextValue = {
 }
 ```
 
-Update hook usage in HomnayangiPage:
+and:
 
 ```tsx
-  const { activeRoom, username: currentUsername, leaveRoom } = useMultiplayer();
-
-  const handleLeaveRoom = () => {
-    leaveRoom();
-    onNotify("Left the room");
-  };
+<MultiplayerContext.Provider
+  value={{
+    // ... existing
+    leaveRoom,
+  }}
+>
 ```
 
 Checkpoint:
-1. Leave button sends `room.leave` event.
-2. Backend removes user from room.
-3. activeRoom becomes null on success.
+1. The Leave button now sends a real `room.leave` event.
+
+### 5.3 Add the gateway handler skeleton
+
+In `server/src/multiplayer/multiplayer.gateway.ts`, add:
+
+```ts
+@SubscribeMessage("room.leave")
+handleRoomLeave(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() payload: RoomLeavePayload,
+) {
+  // validate -> remove member -> transfer host if needed -> emit updates
+}
+```
+
+Import the DTO at the top of the file.
+
+Checkpoint:
+1. `room.leave` now exists as a real backend event instead of a frontend-only assumption.
+
+### 5.4 Validate the leave request carefully
+
+Inside `handleRoomLeave`, validate in this order:
+1. socket user exists
+2. payload has a `roomId`
+3. `userToRoom` contains a room for this user
+4. the user's current room matches `payload.roomId`
+5. the room exists in `store.rooms`
+6. the user is actually a member of that room
+
+Recommended shape:
+
+```ts
+const username = this.store.socketUser.get(client.id);
+if (!username) {
+  client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
+  return;
+}
+
+const roomId = payload?.roomId?.trim();
+if (!roomId) {
+  client.emit("error", { code: "INVALID_INPUT", message: "Room ID is required." });
+  return;
+}
+
+const currentRoomId = this.store.userToRoom.get(username);
+if (!currentRoomId || currentRoomId !== roomId) {
+  client.emit("error", { code: "FORBIDDEN", message: "You are not in this room." });
+  return;
+}
+```
+
+Checkpoint:
+1. A stale client cannot remove itself from the wrong room.
+
+### 5.5 Remove the leaving member from the room store
+
+Once validated:
+1. find the room
+2. remove the leaving member from `room.members`
+3. delete their private dish choice if Phase 6 data exists
+4. delete `userToRoom` for that username
+
+Example core update:
+
+```ts
+const room = this.store.rooms.get(roomId);
+if (!room) {
+  client.emit("error", { code: "ROOM_NOT_FOUND", message: "Room does not exist." });
+  return;
+}
+
+room.members = room.members.filter((member) => member.username !== username);
+delete room.dishChoicesByUsername[username];
+this.store.userToRoom.delete(username);
+```
+
+Checkpoint:
+1. The store no longer thinks the user is still in the room.
+
+### 5.6 Decide how the leaving client clears `activeRoom`
+
+Recommended decision:
+1. add a dedicated `room.left` server -> client event for the leaving user
+2. keep `room.updated` for remaining members only
+
+Why this is the recommended path:
+1. The leaving user is no longer a member, so they should not rely on a room snapshot they no longer belong to.
+2. It avoids awkward client-side guessing about whether the leave succeeded.
+3. It keeps `activeRoom = null` driven by server confirmation instead of optimistic local state.
+
+Add this behavior:
+
+```ts
+for (const socketId of this.store.userSockets.get(username) ?? []) {
+  this.server.to(socketId).emit("room.left", { roomId });
+}
+```
+
+Then in `MultiplayerConnectionProvider.tsx`, add a listener:
+
+```tsx
+const handleRoomLeft = () => {
+  setActiveRoom(null);
+};
+
+socket.on("room.left", handleRoomLeft);
+// cleanup with socket.off("room.left", handleRoomLeft)
+```
+
+Checkpoint:
+1. The leaving user reliably exits the room in client state.
+
+### 5.7 Transfer host if the leaver was host
+
+If the removed member was host:
+1. pick the next host deterministically
+2. update `room.hostUsername`
+3. update each remaining member's `isHost`
+
+Recommended rule:
+1. choose the first remaining connected member
+2. if no connected members remain, choose the first remaining member
+
+Example helper logic:
+
+```ts
+private assignNextHost(room: RoomStateInternal): void {
+  const nextHost =
+    room.members.find((member) => member.isConnected) ?? room.members[0] ?? null;
+
+  room.hostUsername = nextHost ? nextHost.username : "";
+  room.members = room.members.map((member) => ({
+    ...member,
+    isHost: nextHost ? member.username === nextHost.username : false,
+  }));
+}
+```
+
+Call it only if:
+1. the leaving user was host
+2. `room.members.length > 0`
+
+Checkpoint:
+1. Host transfer is deterministic and visible to everyone still in the room.
+
+### 5.8 Remove the room entirely if it becomes empty
+
+After removing the member:
+1. if `room.members.length === 0`
+2. delete the room from `store.rooms`
+3. return early after emitting `room.left` to the leaver
+
+Example:
+
+```ts
+if (room.members.length === 0) {
+  this.store.rooms.delete(roomId);
+  return;
+}
+```
+
+Checkpoint:
+1. Empty rooms do not linger in memory.
+
+### 5.9 Broadcast the updated room to the remaining members
+
+If the room still has members:
+1. save the updated room back to `store.rooms`
+2. emit sanitized `room.updated` to remaining members only
+
+Use your existing helper:
+
+```ts
+this.store.rooms.set(roomId, room);
+this.emitRoomUpdated(room);
+```
+
+Checkpoint:
+1. Remaining users immediately see the smaller member list.
+2. If host changed, they also see the new host label.
+
+### 5.10 Hook the page up to the finished flow
+
+In `HomnayangiPage.tsx`, keep the page handler simple:
+
+```tsx
+const { activeRoom, username: currentUsername, leaveRoom } = useMultiplayer();
+
+const handleLeaveRoom = () => {
+  leaveRoom();
+  onNotify("Leaving room...");
+};
+```
+
+Once `room.left` is implemented in the provider, the page should no longer need to manually force `activeRoom` to `null`.
+
+Checkpoint:
+1. Leave button feels immediate.
+2. Final room removal still depends on server confirmation.
+
+### 5.11 Manual test this backend flow directly
+
+Test these exact cases:
+1. Non-host leaves a 2-person room:
+   1. leaver gets `room.left`
+   2. remaining user sees room with 1 member
+   3. remaining user becomes host if needed
+2. Host leaves a 3-person room:
+   1. next host is assigned deterministically
+   2. remaining users get `room.updated`
+3. Last member leaves:
+   1. `userToRoom` entry is removed
+   2. room is deleted from `store.rooms`
+4. Client sends wrong `roomId`:
+   1. backend rejects with `FORBIDDEN`
+
+Checkpoint:
+1. `room.leave` works as a real backend state transition, not just a UI action.
 
 ---
 

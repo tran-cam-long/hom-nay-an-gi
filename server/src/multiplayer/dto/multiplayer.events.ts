@@ -10,3 +10,7 @@ export type RoomSetDishChoicePayload = {
     roomId: string,
     dishId: number;
 }
+
+export type RoomLeavePayload = {
+    roomId: string;
+}
