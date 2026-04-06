@@ -405,10 +405,7 @@ export class MultiplayerGateway
     this.store.rooms.set(room.roomId, room);
 
     this.logger.log(`${username} started ${game} in room ${room.roomId}`);
-    this.server.emit("game.started", {
-      roomId: room.roomId,
-      game,
-    });
+    this.emitGameStarted(room);
     this.emitRoomUpdated(room);
   }
 
@@ -512,5 +509,19 @@ export class MultiplayerGateway
       ...member,
       isHost: nextHost ? member.username === nextHost.username : false,
     }));
+  }
+
+  private emitGameStarted(room: RoomStateInternal): void {
+    for (const member of room.members) {
+      const socketIds = this.store.userSockets.get(member.username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("game.started", {
+          roomId: room.roomId,
+          game: room.selectedGame
+        });
+      }
+    }
   }
 }

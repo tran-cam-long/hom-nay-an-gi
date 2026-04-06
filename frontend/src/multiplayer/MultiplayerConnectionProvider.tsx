@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
 import { createMultiplayerSocket } from "./socket";
-import type { MultiplayerError, RoomState, MultiplayerConnectionStatus, MultiplayerNotification } from "../types/multiplayer";
+import type { MultiplayerError, RoomState, MultiplayerConnectionStatus, MultiplayerNotification, MultiplayerGameKey, GameStartedEvent } from "../types/multiplayer";
 import { MultiplayerContext } from "./MultiplayerContext";
 
 type MultiplayerConnectionProviderProps = {
@@ -135,10 +135,31 @@ export default function MultiplayerConnectionProvider({
     socket.emit("room.leave", { roomId: activeRoom.roomId });
   }, [activeRoom]);
 
-  const startGame = useCallback((game: string) => {
+  const startGame = useCallback((game: MultiplayerGameKey) => {
     const socket = socketRef.current;
-    if (!socket || !activeRoom) return;
-    socket.emit("game.start", { roomId: activeRoom.roomId, game });
+
+    if (!activeRoom) {
+      setLastError(createLocalError("ROOM_NOT_FOUND", "You are not currently in a room."));
+      return false;
+    }
+
+    if (!isSocketReady(socket)) {
+      setLastError(
+        createLocalError(
+          "SOCKET_NOT_READY",
+          "You are not connected to multiplayer."
+        ),
+      );
+      return false;
+    }
+
+    setLastError(null);
+    socket.emit("game.start", {
+      roomId: activeRoom.roomId,
+      game
+    });
+
+    return true;
   }, [activeRoom]);
 
   const setRoomDishChoice = (dishId: number) => {
@@ -271,6 +292,32 @@ export default function MultiplayerConnectionProvider({
       setActiveRoom(null);
     }
 
+    const handleGameStarted = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as GameStartedEvent)
+        : null;
+
+      if (!data || !activeRoom) {
+        return;
+      }
+
+      if (data.roomId !== activeRoom.roomId) {
+        return;
+      }
+
+      setActiveRoom((current) => {
+        if (!current || current.roomId !== data.roomId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          status: "in_game",
+          selectedGame: data.game
+        }
+      });
+    }
+
     if (!socket) return;
 
     socket.on("connect", handleConnect);
@@ -281,6 +328,7 @@ export default function MultiplayerConnectionProvider({
     socket.on("room.joined", handleRoomJoined);
     socket.on("room.updated", handleRoomUpdated);
     socket.on("room.left", handleRoomLeft);
+    socket.on("game.started", handleGameStarted);
     socket.on("error", handleSocketError);
 
     return () => {
@@ -292,6 +340,7 @@ export default function MultiplayerConnectionProvider({
       socket.off("room.joined", handleRoomJoined);
       socket.off("room.updated", handleRoomUpdated);
       socket.off("room.left", handleRoomLeft);
+      socket.off("game.started", handleGameStarted);
       socket.off("error", handleSocketError);
       socket.disconnect();
 

@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { MultiplayerConnectionStatus, MultiplayerError, MultiplayerNotification, RoomState } from "../types/multiplayer"
+import type { GameStartedEvent, MultiplayerConnectionStatus, MultiplayerError, MultiplayerGameKey, MultiplayerNotification, RoomState } from "../types/multiplayer"
 
 
 export type MultiplayerContextValue = {
@@ -12,7 +12,7 @@ export type MultiplayerContextValue = {
     acceptInvite: (inviteId: string) => boolean;
     markAllNotificationsRead: () => void;
     leaveRoom: () => void;
-    startGame: (game: string) => void;
+    startGame: (game: MultiplayerGameKey) => boolean;
     setRoomDishChoice: (dishId: number) => boolean;
 }
 

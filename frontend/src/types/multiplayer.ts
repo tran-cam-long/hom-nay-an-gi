@@ -43,3 +43,10 @@ export type MultiplayerError = {
     message: string;
     receivedAt: string;
 };
+
+export type MultiplayerGameKey = "rps";
+
+export type GameStartedEvent = {
+    roomId: string;
+    game: MultiplayerGameKey;
+};
