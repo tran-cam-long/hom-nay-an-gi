@@ -158,7 +158,7 @@ export default function MultiplayerConnectionProvider({
       setLastError(
         createLocalError(
           "SOCKET_NOT_READY",
-          "Your are not connected to multiplayer."
+          "You are not connected to multiplayer."
         ),
       );
       return false;
@@ -170,7 +170,7 @@ export default function MultiplayerConnectionProvider({
       dishId,
     });
     return true;
-  }
+  };
 
   useEffect(() => {
     if (!accessToken || !username) {

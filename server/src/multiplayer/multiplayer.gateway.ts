@@ -234,19 +234,28 @@ export class MultiplayerGateway
   ) {
     const username = this.store.socketUser.get(client.id);
     if (!username) {
-      client.emit("error", { code: "UNAUTHENTICATED", message: "Socker is not registered." });
+      client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
       return;
     }
 
-    if (!payload || !payload.roomId || !payload.dishId) {
+    if (!payload || !payload.roomId || !Number.isFinite(payload.dishId)) {
       client.emit("error", {
         code: "INVALID_INPUT",
-        message: "Room set dish choice payload must be present with roomId and dishId."
+        message: "Room set dish choice payload must be present with roomId and numeric dishId."
       });
       return;
     }
 
     const payloadRoomId = payload.roomId;
+    const currentRoomId = this.store.userToRoom.get(username);
+    if (!currentRoomId || currentRoomId !== payloadRoomId) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: "You are not in this room.",
+      });
+      return;
+    }
+
     const room = this.store.rooms.get(payloadRoomId);
     if (!room) {
       client.emit("error", {
@@ -275,6 +284,7 @@ export class MultiplayerGateway
     const payloadDishId = payload.dishId;
     room.dishChoicesByUsername[username] = payloadDishId;
     member.hasChosenDish = true;
+    this.logger.log(`${username} marked ready in room ${room.roomId}`);
     this.store.rooms.set(room.roomId, room);
     this.emitRoomUpdated(room);
   }

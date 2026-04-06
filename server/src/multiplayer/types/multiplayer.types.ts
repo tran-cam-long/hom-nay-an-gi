@@ -1,5 +1,3 @@
-import { RouterModule } from "@nestjs/core";
-
 export type InviteStatus = "pending" | "accepted" | "expired" | "declined";
 
 export type Invite = {

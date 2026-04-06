@@ -21,7 +21,7 @@ export default function RoomPanel({
     onStart,
     onLeave
 }: RoomPanelProps) {
-    const [showStartTooptip, setShowStartTooltip] = useState(false);
+    const [showStartTooltip, setShowStartTooltip] = useState(false);
 
     return (
         <div className="room-panel">
@@ -50,7 +50,7 @@ export default function RoomPanel({
                                 {member.username === currentUsername && <span className="you-badge">You</span>}
                             </span>
                             <span className={`ready-status ${member.hasChosenDish ? "ready" : "not-ready"}`}>
-                                {member.hasChosenDish ? "Ready" : "Choosing"}
+                                {member.hasChosenDish ? "Ready" : "Choosing..."}
                             </span>
                         </li>
                     ))}
@@ -73,7 +73,7 @@ export default function RoomPanel({
                         >
                             Start Game
                         </button>
-                        {showStartTooptip && isStartDisabled && startDisabledReason && (
+                        {showStartTooltip && isStartDisabled && startDisabledReason && (
                             <div className="start-tooltip">{startDisabledReason}</div>
                         )}
                     </div>

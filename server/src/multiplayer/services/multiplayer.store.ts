@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Invite, RoomState, RoomStateInternal } from "../types/multiplayer.types";
+import { Invite, RoomStateInternal } from "../types/multiplayer.types";
 
 @Injectable()
 export class MultiplayerStore {

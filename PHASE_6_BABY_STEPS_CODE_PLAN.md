@@ -1,441 +1,359 @@
 # Phase 6 Baby Steps Code Plan (Dish Choice Integration for Multiplayer)
 
-This guide is for implementing **Phase 6** yourself in very small steps, with checkpoints after each step.
+This guide is for implementing **Phase 6** in very tiny steps.
+Every step below includes:
+1. exactly which file to touch
+2. what code to add or replace
+3. what should be true before moving on
 
 Scope:
-1. Sync dish choice readiness to the multiplayer room after a successful dish choice save.
-2. Keep multiplayer privacy intact: other players only see `Ready` / `Choosing`.
-3. Store the chosen dish privately on the server for future winner reveal.
-4. Keep the existing dish selection UI working for both solo and multiplayer users.
-5. Do not build game selection UI yet.
-6. Do not build RPS gameplay UI yet.
-7. Do not reveal dish names or IDs in room state.
+1. After a successful dish choice save, sync readiness into the multiplayer room.
+2. Keep dish privacy intact.
+3. Store chosen dish IDs only on the server.
+4. Make room readiness survive reconnect.
+5. Do not build Phase 7 game selection UI yet.
+6. Do not build RPS gameplay yet.
 
 ---
 
-## 0. Current Starting Point
+## 0. Current State You Already Have
 
-You already have:
-1. `HomnayangiPage` submitting dish choices through `POST /dishchoice/choice`.
-2. `MultiplayerConnectionProvider` storing `activeRoom`, `notifications`, and socket connection state.
-3. Shared room types on both frontend and backend already include `RoomMember.hasChosenDish`.
-4. `RoomPanel` rendering member readiness using `member.hasChosenDish`.
-5. Backend multiplayer gateway already handling:
-   1. `invite.send`
-   2. `invite.accept`
-   3. `room.sync`
-   4. disconnect -> `isConnected = false`
-6. Frontend multiplayer provider already exposing:
-   1. `sendInvite`
-   2. `acceptInvite`
-   3. `leaveRoom`
-   4. `startGame`
+The codebase is already partway through Phase 6.
 
-Important current gaps:
-1. There is still no `room.setDishChoice` event on either client or server.
-2. `hasChosenDish` is initialized when the room is created, but never updated after a player actually chooses a dish.
-3. Dish choice currently exists only in the HTTP flow, so room readiness never changes in realtime.
-4. The backend store currently saves only public `RoomState`, which makes future dish privacy easy to break unless we add a private/internal room shape now.
-5. `HomnayangiPage` currently duplicates dish choice success logic in two places:
-   1. `handleChooseClick`
-   2. `handleCarouselChooseClick`
-6. Phase 5 is only partially wired in the current code:
-   1. `RoomPanel` is rendered with `isStartDisabled={false}` and `startDisabledReason={null}` instead of the computed values already present in the file.
-   2. `HomnayangiPage` calls `startGame("rps")`, but the hook destructure does not currently include `startGame`; a local fallback stub exists at the bottom of the file.
-   3. Backend handlers for `room.leave` and `game.start` still do not exist.
+Already present right now:
+1. Backend DTO `RoomSetDishChoicePayload` exists in `server/src/multiplayer/dto/multiplayer.events.ts`.
+2. Backend `room.setDishChoice` handler exists in `server/src/multiplayer/multiplayer.gateway.ts`.
+3. Backend internal room shape already has `dishChoicesByUsername`.
+4. Frontend provider already exposes `setRoomDishChoice`.
+5. `HomnayangiPage` already calls `setRoomDishChoice(dishId)` after HTTP dish save succeeds.
+6. `RoomPanel` already renders readiness using `member.hasChosenDish`.
 
-Goal for Phase 6:
-1. After a successful dish choice, all room members see that player become `Ready`.
-2. No room event exposes which dish was chosen.
-3. The server privately remembers dish IDs for future `game.finished` winner reveal.
-4. Reconnects still show correct readiness.
-5. Phase 7 can trust multiplayer readiness data instead of local-only UI state.
+Real goal of this updated plan:
+1. make the flow cleaner
+2. make the current implementation easier to verify
+3. close the small correctness gaps
+4. leave Phase 7 with a solid base
 
 ---
 
-## 0.5 Recommended Small Decisions Locked In
+## 1. Lock the Phase 6 Rules First
 
-Before writing the sync logic, lock these decisions in and follow them consistently through the whole phase.
+Before changing code, keep these rules fixed:
 
-### Decision 1: Source of truth for readiness
-
-Use the **backend room state** as the source of truth for `hasChosenDish`.
-
-Why:
-1. Every player needs to see the same readiness state.
-2. Phase 7 start validation must trust room state, not one tab's local flags.
-3. Reconnect behavior becomes much simpler.
+1. `POST /dishchoice/choice` stays the primary save path.
+2. `room.setDishChoice` fires only after the HTTP save succeeds.
+3. Public room state must never include `dishId` or dish name.
+4. Only `hasChosenDish` should be visible to other players.
+5. Re-choosing a dish should keep the player as `Ready`.
 
 Checkpoint:
-1. `hasChosenDish` is updated by the backend and then broadcast back to clients.
-
-### Decision 2: When to emit `room.setDishChoice`
-
-Emit `room.setDishChoice` **only after** the existing HTTP dish choice request succeeds.
-
-Why:
-1. The upstream dish choice API is still the real persistence path.
-2. We do not want optimistic room readiness if the HTTP request failed.
-3. This keeps multiplayer state aligned with the actual saved choice.
-
-Checkpoint:
-1. Failed HTTP dish choice does not mark the player ready in the room.
-
-### Decision 3: How to support "Choose again"
-
-If a player chooses again later, keep them as `Ready` and simply replace the server's private stored dish ID.
-
-Why:
-1. The room only needs readiness, not a visible history of changes.
-2. This preserves privacy.
-3. It avoids unnecessary `Ready -> Choosing -> Ready` flicker for other players.
-
-Checkpoint:
-1. Re-choosing a dish updates private backend data without revealing anything new to peers.
+1. You know exactly what this phase is allowed to expose and what must stay private.
 
 ---
 
-## 1. Address the Blocking Gaps First
+## 2. Confirm the Backend Event Contract
 
-Before adding any new Phase 6 behavior, clean up the small gaps that would make readiness testing misleading or brittle.
+File:
+1. `server/src/multiplayer/dto/multiplayer.events.ts`
 
-Files:
-1. `frontend/src/pages/HomnayangiPage.tsx`
-2. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
-
-### 1.1 Stop hard-coding the room panel start props
-
-Right now the JSX still passes:
-
-```tsx
-isStartDisabled={false}
-startDisabledReason={null}
-```
-
-Replace those with the already computed values:
-
-```tsx
-isStartDisabled={isStartDisabled}
-startDisabledReason={startDisabledReason}
-```
-
-Why this comes first:
-1. Phase 6 is about readiness.
-2. If the room panel ignores the real readiness calculation, manual verification becomes confusing immediately.
-
-Checkpoint:
-1. `RoomPanel` now reflects the real room readiness calculation already present in the page.
-
-### 1.2 Clean up the `startGame` hook mismatch
-
-Follow the recommended path here:
-1. destructure `startGame` from `useMultiplayer()`
-2. remove the local `function startGame(_game: string)` stub at the bottom of the file
-
-Do not keep both.
-
-Why this comes first:
-1. The local stub hides the real provider contract.
-2. It makes the file harder to reason about while you are adding more multiplayer logic.
-
-Checkpoint:
-1. `HomnayangiPage` uses the real multiplayer action and no longer contains the misleading local fallback stub.
-
-### 1.3 Keep the remaining missing handlers visible, but do not expand Phase 6 scope yet
-
-These gaps are still real:
-1. backend `room.leave`
-2. backend `game.start`
-
-For this Phase 6 plan, treat them as known follow-up work unless they block your local testing setup.
-
-Why:
-1. They are adjacent multiplayer gaps.
-2. They are not the core dish-choice sync path.
-3. Pulling them fully into Phase 6 would blur the scope.
-
-Checkpoint:
-1. The plan addresses the misleading UI gaps first without turning Phase 6 into a Phase 5/7 rewrite.
-
----
-
-## 2. Add a Private Room Shape on the Backend First
-
-Do not build `room.setDishChoice` on top of the current public-only room type.
-Phase 6 is the right time to separate:
-1. public room data that can be broadcast
-2. private dish data that must stay server-only
-
-Files:
-1. `server/src/multiplayer/types/multiplayer.types.ts`
-2. `server/src/multiplayer/services/multiplayer.store.ts`
-3. `server/src/multiplayer/multiplayer.gateway.ts`
-
-### 2.1 Introduce `RoomStateInternal`
-
-Keep the existing public `RoomState`, then add a private room type.
-
-Example:
+This file should contain:
 
 ```ts
+export type RoomSetDishChoicePayload = {
+  roomId: string,
+  dishId: number;
+}
+```
+
+If it does not match, make it match exactly.
+
+Why this baby step matters:
+1. The rest of the phase depends on one stable payload shape.
+
+Checkpoint:
+1. There is one typed backend payload for `room.setDishChoice`.
+
+---
+
+## 3. Confirm the Server-Only Room Shape
+
+File:
+1. `server/src/multiplayer/types/multiplayer.types.ts`
+
+Keep the public type separate from the stored type:
+
+```ts
+export type RoomState = {
+  roomId: string,
+  members: RoomMember[];
+  status: "lobby" | "in_game" | "finished";
+  selectedGame: "rps" | null;
+  hostUsername: string;
+}
+
 export type RoomStateInternal = RoomState & {
   dishChoicesByUsername: Record<string, number>;
-};
-```
-
-You can also name this `StoredRoomState` if you prefer, but keep the intent obvious.
-
-Checkpoint:
-1. Public room data is still represented by `RoomState`.
-2. Private per-user dish IDs now have a dedicated server-only home.
-
-### 2.2 Update the multiplayer store to use the internal type
-
-In `MultiplayerStore`, change:
-
-```ts
-readonly rooms = new Map<string, RoomState>();
-```
-
-to:
-
-```ts
-readonly rooms = new Map<string, RoomStateInternal>();
+}
 ```
 
 Checkpoint:
-1. The server store can now hold private dish data without leaking it into shared types.
+1. Dish choices live only in `RoomStateInternal`.
+2. Public `RoomState` stays safe to send to the client.
 
-### 2.3 Add a helper to convert internal room state to public room state
+---
 
-Create a tiny helper either:
-1. in `multiplayer.types.ts`, or
-2. as a private helper inside `MultiplayerGateway`
+## 4. Make the Privacy Filter Explicit
 
-Example:
+File:
+1. `server/src/multiplayer/types/multiplayer.types.ts`
+
+Keep or add this helper:
 
 ```ts
-function toPublicRoomState(room: RoomStateInternal): RoomState {
+export function toPublicRoomState(room: RoomStateInternal): RoomState {
   return {
     roomId: room.roomId,
     members: room.members,
     status: room.status,
     selectedGame: room.selectedGame,
     hostUsername: room.hostUsername,
+  }
+}
+```
+
+Why this deserves its own step:
+1. This is the main privacy wall for Phase 6.
+
+Checkpoint:
+1. There is one obvious place that strips private room data before emit.
+
+---
+
+## 5. Confirm New Rooms Start With Private Dish Storage
+
+File:
+1. `server/src/multiplayer/multiplayer.gateway.ts`
+
+In `createLobbyRoom`, make sure the returned object includes:
+
+```ts
+dishChoicesByUsername: {},
+```
+
+Full shape should look like:
+
+```ts
+private createLobbyRoom(roomId: string, inviter: string, invitee: string): RoomStateInternal {
+  return {
+    roomId,
+    status: "lobby" as const,
+    selectedGame: "rps" as const,
+    hostUsername: inviter,
+    members: [
+      {
+        username: inviter,
+        isHost: true,
+        hasChosenDish: false,
+        isConnected: true,
+        isEliminated: false,
+      },
+      {
+        username: invitee,
+        isHost: false,
+        hasChosenDish: false,
+        isConnected: true,
+        isEliminated: false,
+      },
+    ],
+    dishChoicesByUsername: {},
   };
 }
 ```
 
 Checkpoint:
-1. There is now exactly one explicit place where private room state is stripped before emit.
+1. Every new room starts with empty private dish storage.
 
 ---
 
-## 3. Add the New Event Contract
-
-Add the new event payload before wiring behavior.
-
-Files:
-1. `server/src/multiplayer/dto/multiplayer.events.ts`
-2. `frontend/src/multiplayer/MultiplayerContext.ts`
-3. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
-
-### 3.1 Add the backend DTO
-
-In `server/src/multiplayer/dto/multiplayer.events.ts`, add:
-
-```ts
-export type RoomSetDishChoicePayload = {
-  roomId: string;
-  dishId: number;
-};
-```
-
-Checkpoint:
-1. The backend event shape is defined in one place.
-
-### 3.2 Add a client action to the multiplayer context
-
-In `MultiplayerContext.ts`, add:
-
-```ts
-setRoomDishChoice: (dishId: number) => boolean;
-```
-
-Return `boolean` instead of `void`.
-
-Why:
-1. `HomnayangiPage` can keep the HTTP success flow.
-2. If local socket validation fails, the page can still tell the user that dish save succeeded but room sync did not.
-
-Checkpoint:
-1. The provider API can report whether the emit path actually ran.
-
----
-
-## 4. Implement the Backend `room.setDishChoice` Handler
-
-Now add the actual realtime readiness update.
+## 6. Make Sure Every Room Emit Uses Public State
 
 File:
 1. `server/src/multiplayer/multiplayer.gateway.ts`
 
-### 4.1 Register a new socket handler
+There are three places to check.
 
-Add:
+### 6.1 `room.sync`
 
-```ts
-@SubscribeMessage("room.setDishChoice")
-handleRoomSetDishChoice(
-  @ConnectedSocket() client: Socket,
-  @MessageBody() payload: RoomSetDishChoicePayload,
-) {
-  // validation + update
-}
-```
-
-Checkpoint:
-1. The event name now exists in the gateway.
-
-### 4.2 Validate the payload carefully
-
-Validate:
-1. socket user exists
-2. `roomId` is present
-3. `dishId` is a valid number
-4. user belongs to that room
-5. room exists
-6. room is still in `lobby`
-
-Suggested guard shape:
-
-```ts
-if (!username) {
-  client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
-  return;
-}
-```
-
-Then add similar guards for `ROOM_NOT_FOUND`, `FORBIDDEN`, `INVALID_INPUT`, and `ROOM_NOT_JOINABLE` or similar.
-
-Checkpoint:
-1. Invalid or stale clients cannot mutate room readiness.
-
-### 4.3 Save the dish privately and mark the member ready
-
-Once validated:
-1. write `dishChoicesByUsername[username] = dishId`
-2. set that member's `hasChosenDish = true`
-3. save the internal room back into the store
-4. broadcast sanitized `room.updated`
-
-Example core update:
-
-```ts
-room.dishChoicesByUsername[username] = payload.dishId;
-
-const member = room.members.find((item) => item.username === username);
-if (!member) {
-  client.emit("error", { code: "MEMBER_NOT_FOUND", message: "User is not in this room." });
-  return;
-}
-
-member.hasChosenDish = true;
-this.store.rooms.set(room.roomId, room);
-this.emitRoomUpdated(room);
-```
-
-Checkpoint:
-1. Everyone in the room sees the player switch to `Ready`.
-2. Nobody receives the actual `dishId`.
-
-### 4.4 Add a small log line
-
-Add one backend log line for visibility while debugging:
-
-```ts
-this.logger.log(`${username} marked ready in room ${room.roomId}`);
-```
-
-Checkpoint:
-1. Manual testing is easier because readiness updates are visible in server logs.
-
----
-
-## 5. Make Every Room Emit Use Public State Only
-
-Once private dish storage exists, audit all room emits immediately.
-
-File:
-1. `server/src/multiplayer/multiplayer.gateway.ts`
-
-### 5.1 Update room creation
-
-In `createLobbyRoom`, return the internal room shape:
-
-```ts
-return {
-  roomId,
-  status: "lobby",
-  selectedGame: "rps",
-  hostUsername: inviter,
-  members: [...],
-  dishChoicesByUsername: {},
-};
-```
-
-Checkpoint:
-1. New rooms begin with no stored private dish choices.
-
-### 5.2 Update `room.sync`
-
-Anywhere `client.emit("room.updated", { roomState: room })` is used, replace it with:
+This should emit:
 
 ```ts
 client.emit("room.updated", { roomState: toPublicRoomState(room) });
 ```
 
-Checkpoint:
-1. Reconnect flow still works.
-2. Private room data is not sent during sync.
+### 6.2 `emitRoomToUsers`
 
-### 5.3 Update `emitRoomToUsers` and `emitRoomUpdated`
-
-Both helpers should emit only public state:
+This helper should build public state first:
 
 ```ts
 const publicRoomState = toPublicRoomState(room);
 ```
 
-Then emit `publicRoomState`, not `room`.
+And then emit `publicRoomState`, not `room`.
+
+### 6.3 `emitRoomUpdated`
+
+This helper should also do:
+
+```ts
+const publicRoomState = toPublicRoomState(room);
+```
 
 Checkpoint:
-1. No socket room event leaks `dishChoicesByUsername`.
-
-### 5.4 Do a quick privacy grep after this step
-
-Search for:
-1. `dishChoicesByUsername`
-2. `roomState: room`
-3. `emit("room.updated"`
-
-Checkpoint:
-1. You can point to a small set of safe emit sites.
+1. No room event leaks `dishChoicesByUsername`.
 
 ---
 
-## 6. Add the Client Emit Helper
+## 7. Tighten the `room.setDishChoice` Backend Handler
 
-Now wire the frontend provider action that the page will call.
+File:
+1. `server/src/multiplayer/multiplayer.gateway.ts`
+
+You already have the handler. Now make it easier to trust by checking each guard one by one.
+
+Target shape:
+
+```ts
+@SubscribeMessage("room.setDishChoice")
+handleRoomSetDishChoice(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() payload: RoomSetDishChoicePayload
+) {
+  const username = this.store.socketUser.get(client.id);
+  if (!username) {
+    client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
+    return;
+  }
+
+  if (!payload || !payload.roomId || !payload.dishId) {
+    client.emit("error", {
+      code: "INVALID_INPUT",
+      message: "Room set dish choice payload must be present with roomId and dishId."
+    });
+    return;
+  }
+
+  const payloadRoomId = payload.roomId;
+  const room = this.store.rooms.get(payloadRoomId);
+  if (!room) {
+    client.emit("error", {
+      code: "ROOM_NOT_FOUND",
+      message: `This roomId ${payloadRoomId} is not existing!`
+    });
+    return;
+  }
+
+  if (room.status !== "lobby") {
+    client.emit("error", {
+      code: "ROOM_NOT_JOINABLE",
+      message: `This roomId ${payloadRoomId}'s status is not lobby!`
+    });
+    return;
+  }
+
+  const member = room.members.find((item) => item.username === username);
+  if (!member) {
+    client.emit("error", {
+      code: "FORBIDDEN",
+      message: `This username ${username} does not belong to the room!`
+    });
+    return;
+  }
+
+  const payloadDishId = payload.dishId;
+  room.dishChoicesByUsername[username] = payloadDishId;
+  member.hasChosenDish = true;
+  this.store.rooms.set(room.roomId, room);
+  this.emitRoomUpdated(room);
+}
+```
+
+Small improvement to make here:
+1. change the `payload.dishId` guard from truthy/falsy to a numeric validation
+
+Use:
+
+```ts
+if (!payload || !payload.roomId || !Number.isFinite(payload.dishId)) {
+  client.emit("error", {
+    code: "INVALID_INPUT",
+    message: "Room set dish choice payload must be present with roomId and numeric dishId."
+  });
+  return;
+}
+```
+
+Why this matters:
+1. `0` would fail a truthy check even if you ever use it later.
+2. Numeric validation is clearer.
+
+Checkpoint:
+1. Invalid payloads fail safely.
+2. Valid payloads only update readiness in `lobby`.
+
+---
+
+## 8. Add a Debug Log Right After Readiness Update
+
+File:
+1. `server/src/multiplayer/multiplayer.gateway.ts`
+
+Right after:
+
+```ts
+member.hasChosenDish = true;
+```
+
+add:
+
+```ts
+this.logger.log(`${username} marked ready in room ${room.roomId}`);
+```
+
+Then keep:
+
+```ts
+this.store.rooms.set(room.roomId, room);
+this.emitRoomUpdated(room);
+```
+
+Checkpoint:
+1. Manual testing is easier because the server logs readiness transitions.
+
+---
+
+## 9. Keep the Frontend Provider Contract Small and Safe
+
+File:
+1. `frontend/src/multiplayer/MultiplayerContext.ts`
+
+Make sure the context type includes:
+
+```ts
+setRoomDishChoice: (dishId: number) => boolean;
+```
+
+Checkpoint:
+1. Page components can ask the provider to sync readiness.
+2. The provider can report whether it emitted or not.
+
+---
+
+## 10. Tighten the Frontend Provider Emit Helper
 
 File:
 1. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
 
-### 6.1 Add `setRoomDishChoice`
-
-Follow the same pattern as `acceptInvite`.
-
-Example:
+The function should look like this:
 
 ```tsx
 const setRoomDishChoice = (dishId: number) => {
@@ -455,7 +373,7 @@ const setRoomDishChoice = (dishId: number) => {
     setLastError(
       createLocalError(
         "SOCKET_NOT_READY",
-        "You are not connected to multiplayer.",
+        "You are not connected to multiplayer."
       ),
     );
     return false;
@@ -467,32 +385,40 @@ const setRoomDishChoice = (dishId: number) => {
     dishId,
   });
   return true;
-};
+}
 ```
 
-Checkpoint:
-1. The provider has a safe, reusable entry point for room readiness sync.
-
-### 6.2 Expose it through context
-
-Add `setRoomDishChoice` to the provider value.
+Two tiny cleanups to make here if needed:
+1. fix the typo `"Your are not connected to multiplayer."` to `"You are not connected to multiplayer."`
+2. keep the function return type behavior consistent with `acceptInvite`
 
 Checkpoint:
-1. `useMultiplayer()` consumers can now trigger the new room event.
+1. The provider emits only when room state and socket state are both valid.
 
 ---
 
-## 7. Refactor `HomnayangiPage` So Both Choice Flows Share One Multiplayer Sync Path
+## 11. Expose the Provider Action Through Context Value
 
-Right now the page has two separate success paths.
-Phase 6 is a good moment to unify them so the multiplayer emit cannot drift.
+File:
+1. `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`
+
+Inside the provider `value`, include:
+
+```tsx
+setRoomDishChoice
+```
+
+Checkpoint:
+1. `useMultiplayer()` consumers can actually call the new action.
+
+---
+
+## 12. Keep `HomnayangiPage` Hook Destructure Honest
 
 File:
 1. `frontend/src/pages/HomnayangiPage.tsx`
 
-### 7.1 Pull `setRoomDishChoice` from the hook
-
-Update the hook usage to include the new action:
+Make sure the multiplayer hook destructure includes:
 
 ```tsx
 const {
@@ -500,21 +426,29 @@ const {
   sendInvite,
   username: currentUsername = null,
   leaveRoom,
+  startGame,
   setRoomDishChoice,
 } = useMultiplayer();
 ```
 
+Why this is its own step:
+1. It keeps all multiplayer actions visible in one place.
+2. It avoids hidden local stubs or disconnected logic later.
+
 Checkpoint:
-1. The page can now sync a successful choice into the room.
+1. The page explicitly depends on the real provider action.
 
-### 7.2 Extract a shared success helper
+---
 
-Create a helper that runs after the HTTP choice succeeds.
+## 13. Extract One Shared Success Helper for Dish Choice
 
-Example shape:
+File:
+1. `frontend/src/pages/HomnayangiPage.tsx`
+
+Keep one shared helper:
 
 ```tsx
-const handleDishChoiceSuccess = (dishId: number) => {
+const handleSetDishChoiceSuccess = (dishId: number) => {
   if (activeRoom) {
     const didSync = setRoomDishChoice(dishId);
     if (!didSync) {
@@ -525,148 +459,260 @@ const handleDishChoiceSuccess = (dishId: number) => {
   setArmedDishId(null);
   setIsChoosingEnabled(false);
   onNotify("Dish chosen!");
-};
+}
+```
+
+Why this step matters:
+1. Both choice flows should behave the same in multiplayer.
+2. All socket-sync error handling stays in one place.
+
+Checkpoint:
+1. There is only one post-success multiplayer sync path.
+
+---
+
+## 14. Wire the Grid Dish Flow Into That Helper
+
+File:
+1. `frontend/src/pages/HomnayangiPage.tsx`
+
+Inside `handleChooseClick`, keep:
+
+```tsx
+try {
+  await submitChoice(dishId);
+  handleSetDishChoiceSuccess(dishId);
+} catch (e) {
+  setError(e instanceof Error ? e.message : "Cannot submit choice right now.");
+} finally {
+  setIsSubmittingChoice(false);
+}
 ```
 
 Checkpoint:
-1. Multiplayer sync logic now lives in one place instead of two.
-
-### 7.3 Update the grid card flow
-
-Inside `handleChooseClick`, after `await submitChoice(dishId);`, call the shared helper.
-
-Checkpoint:
-1. Grid-based dish choosing now updates room readiness.
-
-### 7.4 Update the carousel flow
-
-Inside `handleCarouselChooseClick`, keep the existing recommendation display updates, then call the same shared helper.
-
-Checkpoint:
-1. Carousel-based dish choosing updates room readiness in exactly the same way.
-
-### 7.5 Keep solo users working exactly the same
-
-The helper should only emit `room.setDishChoice` when `activeRoom` exists.
-
-Checkpoint:
-1. Users outside a room still choose dishes without any multiplayer dependency.
+1. Choosing from the grid updates room readiness after HTTP success.
 
 ---
 
-## 8. Sanity Check Privacy Rules Before Moving On
+## 15. Wire the Carousel Dish Flow Into The Same Helper
 
-Phase 6 is successful only if readiness works **without exposing dish details**.
+File:
+1. `frontend/src/pages/HomnayangiPage.tsx`
 
-Review:
+Inside `handleCarouselChooseClick`, keep the recommendation updates first:
+
+```tsx
+const chosenAt = new Date().toISOString();
+
+setFavorites((prev) => incrementChosenDisplay(prev, dishId, chosenAt));
+setLeastOftenInTop((prev) => incrementChosenDisplay(prev, dishId, chosenAt));
+setDiscovery((prev) => incrementChosenDisplay(prev, dishId, chosenAt));
+```
+
+Then call:
+
+```tsx
+handleSetDishChoiceSuccess(dishId);
+```
+
+Checkpoint:
+1. Grid and carousel now share identical multiplayer sync behavior.
+
+---
+
+## 16. Keep Solo Users Completely Unblocked
+
+File:
+1. `frontend/src/pages/HomnayangiPage.tsx`
+
+The helper must keep this condition:
+
+```tsx
+if (activeRoom) {
+  const didSync = setRoomDishChoice(dishId);
+  if (!didSync) {
+    onNotify("Dish saved, but room sync failed. Please refresh the room.");
+  }
+}
+```
+
+Do not emit when there is no room.
+
+Checkpoint:
+1. Solo dish choosing still works with no multiplayer dependency.
+
+---
+
+## 17. Make the Room Readiness UI Reflect Reality
+
+File:
+1. `frontend/src/pages/HomnayangiPage.tsx`
+
+Keep these readiness guards tied to `activeRoom.members`:
+
+```tsx
+const getStartDisabledReason = (): string | null => {
+  if (!isInRoom || !activeRoom) return "Not in a room";
+
+  if (activeRoom.members.length < 2) {
+    return `Need at least 2 players (${activeRoom.members.length}/2)`;
+  }
+
+  const notReady = activeRoom.members.filter((member) => !member.hasChosenDish);
+  if (notReady.length > 0) {
+    return `Waiting for ${notReady.map((member) => member.username).join(", ")} to choose.`;
+  }
+
+  return null;
+}
+```
+
+And keep the `RoomPanel` props wired to those computed values:
+
+```tsx
+<RoomPanel
+  room={activeRoom}
+  currentUsername={currentUsername}
+  isHost={isHost}
+  isStartDisabled={isStartDisabled}
+  startDisabledReason={startDisabledReason}
+  onStart={handleStartGame}
+  onLeave={handleLeaveRoom}
+/>
+```
+
+Why this belongs in Phase 6:
+1. It is the visible proof that readiness sync is working.
+
+Checkpoint:
+1. Start button readiness reflects realtime room updates.
+
+---
+
+## 18. Verify the Frontend Public Types Stay Privacy-Safe
+
+File:
 1. `frontend/src/types/multiplayer.ts`
-2. `server/src/multiplayer/types/multiplayer.types.ts`
-3. `RoomPanel.tsx`
-4. room socket emits in `MultiplayerGateway`
 
-Confirm:
-1. `RoomMember` still exposes only:
-   1. `username`
-   2. `isHost`
-   3. `hasChosenDish`
-   4. `isConnected`
-   5. `isEliminated`
-2. `RoomPanel` still renders only `Ready` / `Choosing`
-3. No `dishId`, `dishName`, or chosen dish preview is added to public room state
-4. Notifications do not mention chosen dishes
+Keep `RoomMember` and `RoomState` limited to public fields:
+
+```ts
+export type RoomMember = {
+  username: string;
+  isHost: boolean;
+  hasChosenDish: boolean;
+  isConnected: boolean;
+  isEliminated: boolean;
+};
+
+export type RoomState = {
+  roomId: string;
+  members: RoomMember[];
+  status: "lobby" | "in_game" | "finished";
+  selectedGame: "rps" | null;
+  hostUsername: string;
+};
+```
+
+Do not add:
+1. `dishId`
+2. `dishName`
+3. `dishImage`
+4. `dishChoicesByUsername`
 
 Checkpoint:
-1. Multiplayer privacy rules are still intact after the Phase 6 changes.
+1. The client type system itself helps prevent privacy leaks.
 
 ---
 
-## 9. Manual Test Plan
+## 19. Manual Test 1: One Player Becomes Ready
 
-Use two users: User A and User B.
+Test steps:
+1. Log in as User A and User B.
+2. User A invites User B.
+3. User B joins.
+4. Both users confirm both room members show `Choosing...`.
+5. User A chooses a dish.
 
-### 9.1 Basic readiness sync
-
-1. User A invites User B.
-2. User B joins.
-3. Both users see room panel with both players as `Choosing`.
-4. User A chooses a dish successfully.
-5. Both users should now see:
-   1. User A = `Ready`
-   2. User B = `Choosing`
-
-Checkpoint:
-1. Readiness updates for both users in realtime.
-
-### 9.2 Privacy check
-
-While User A is `Ready`, verify User B cannot see:
-1. chosen dish name
-2. chosen dish ID
-3. image hint
-4. recommendation hint tied to that room member
+Expected result:
+1. User A still gets the normal dish success behavior.
+2. Both users see User A become `Ready`.
+3. User B does not see the chosen dish.
 
 Checkpoint:
-1. Peer visibility remains boolean-only.
-
-### 9.3 Re-choose behavior
-
-1. User A clicks `Choose again`.
-2. User A chooses a different dish.
-3. Both users should still see User A as `Ready`.
-4. No extra dish details should appear anywhere.
-
-Checkpoint:
-1. Re-choose updates private data without public readiness flicker.
-
-### 9.4 Reconnect behavior
-
-1. User A chooses a dish and becomes `Ready`.
-2. User A refreshes or reconnects their tab.
-3. `room.sync` should restore the room with User A still marked `Ready`.
-
-Checkpoint:
-1. Readiness survives reconnect because it is stored in backend room state.
-
-### 9.5 Host readiness gate
-
-After both users choose a dish:
-1. both players show `Ready`
-2. host Start button becomes enabled because the blocking room panel gap was fixed in Step 1
-
-Checkpoint:
-1. Phase 6 data is now strong enough for Phase 7 start flow.
+1. Realtime readiness works for a basic case.
 
 ---
 
-## 10. Edge Cases and Cleanup
+## 20. Manual Test 2: Both Players Ready Enables Start
 
-Handle or at least sanity-check:
-1. Player chooses a dish when not in a room:
-   1. HTTP succeeds
-   2. no socket emit needed
-2. Player is in a room but socket is disconnected:
-   1. HTTP may succeed
-   2. UI should surface that room sync did not happen
-3. Invalid `dishId` payload from client:
-   1. backend rejects it
-   2. room state stays unchanged
-4. Player tries to emit `room.setDishChoice` for another room ID:
-   1. backend rejects it
-5. Room status is no longer `lobby`:
-   1. backend rejects late readiness updates
+Test steps:
+1. Continue from the previous room.
+2. User B chooses a dish.
+
+Expected result:
+1. Both players show `Ready`.
+2. Host sees Start enabled.
+3. Non-host still cannot start the game.
 
 Checkpoint:
-1. Failure cases are explicit instead of silently corrupting room state.
+1. Phase 6 data is now enough for Phase 7 start validation.
 
 ---
 
-## 11. Definition of Done for Phase 6
+## 21. Manual Test 3: Re-Choose Stays Private
 
-Phase 6 is done when all of the following are true:
-1. Successful dish choice emits `room.setDishChoice` only after the HTTP request succeeds.
-2. Backend stores the chosen dish privately and marks the member `hasChosenDish = true`.
-3. `room.updated` broadcasts the readiness change to all room members.
-4. Public room state still does not expose dish IDs or names.
-5. Reconnects keep correct readiness.
-6. Solo dish choice flow still works.
-7. The host Start button now reflects real readiness because the existing JSX wiring gap was corrected first.
+Test steps:
+1. Have User A choose a dish.
+2. If your UI allows choosing again later, choose a different dish.
+
+Expected result:
+1. User A stays `Ready`.
+2. No one sees which dish changed.
+3. Backend private map updates to the latest `dishId`.
+
+Checkpoint:
+1. Privacy still holds when choices change.
+
+---
+
+## 22. Manual Test 4: Reconnect Restores Readiness
+
+Test steps:
+1. Get User A into `Ready` state.
+2. Refresh User A's tab.
+3. Let the socket reconnect and run `room.sync`.
+
+Expected result:
+1. User A re-enters the room.
+2. `hasChosenDish` is still `true`.
+3. Other players still see User A as `Ready`.
+
+Checkpoint:
+1. Readiness survives reconnect because the backend is the source of truth.
+
+---
+
+## 23. Done Criteria For Phase 6
+
+You are done when all of these are true:
+
+1. Dish choice still saves through HTTP successfully.
+2. Successful dish choice triggers `room.setDishChoice`.
+3. The server stores dish IDs privately in `dishChoicesByUsername`.
+4. The server emits only public room state.
+5. Other players only see `Ready` or `Choosing...`.
+6. Reconnect restores readiness state correctly.
+7. Host Start button reflects room readiness correctly.
+
+---
+
+## 24. Nice Tiny Cleanup List
+
+These are optional small cleanups that still fit this phase well:
+
+1. In `server/src/multiplayer/multiplayer.gateway.ts`, fix typos like `"Socker is not registered."` to `"Socket is not registered."`
+2. In `frontend/src/multiplayer/MultiplayerConnectionProvider.tsx`, fix `"Your are not connected"` to `"You are not connected"`
+3. In `server/src/multiplayer/types/multiplayer.types.ts`, remove the unused `RouterModule` import
+
+These are not the core feature, but they make the phase cleaner.
