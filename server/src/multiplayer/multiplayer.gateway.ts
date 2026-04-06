@@ -11,7 +11,11 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MultiplayerStore } from './services/multiplayer.store';
 import { Invite, RoomStateInternal, toPublicRoomState } from './types/multiplayer.types';
-import type { InviteAcceptPayload, InviteSendPayload, RoomLeavePayload, RoomSetDishChoicePayload } from './dto/multiplayer.events';
+import type {
+  GameStartPayload,
+  InviteAcceptPayload,
+  InviteSendPayload, RoomLeavePayload, RoomSetDishChoicePayload
+} from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
 
 const DEFAULT_WS_CORS_ORIGINS = [
@@ -345,6 +349,69 @@ export class MultiplayerGateway
     this.emitRoomUpdated(room);
   }
 
+  @SubscribeMessage("game.start")
+  handleGameStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: GameStartPayload,
+  ) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", {
+        code: "UNAUTHENTICATED",
+        message: "Socket is not registerd."
+      });
+      return;
+    }
+
+    const roomId = payload?.roomId?.trim();
+    const game = payload?.game;
+
+    if (!roomId || game !== "rps") {
+      client.emit("error", {
+        code: "INVALID_INPUT",
+        message: "Game start payload must include roomId and a supported game.",
+      });
+      return;
+    }
+
+    const room = this.store.rooms.get(roomId);
+    if (!room) {
+      client.emit("error", {
+        code: "ROOM_NOT_FOUND",
+        message: "Room does not exist."
+      });
+      return;
+    }
+
+    if (room.members.length < 2) {
+      client.emit("error", {
+        code: "ROOM_NOT_READY",
+        message: "Need at least 2 players to start."
+      });
+      return;
+    }
+
+    const notReadyMembers = room.members.filter((member) => !member.hasChosenDish);
+    if (notReadyMembers.length > 0) {
+      client.emit("error", {
+        code: "ROOM_NOT_READY",
+        message: `Waiting for ${notReadyMembers.map((member) => member.username).join(", ")} to choose a dish.`
+      });
+      return;
+    }
+
+    room.status = "in_game";
+    room.selectedGame = game;
+    this.store.rooms.set(room.roomId, room);
+
+    this.logger.log(`${username} started ${game} in room ${room.roomId}`);
+    this.server.emit("game.started", {
+      roomId: room.roomId,
+      game,
+    });
+    this.emitRoomUpdated(room);
+  }
+
   private getUsernameFromHandshake(client: Socket): string | null {
     const value = client.handshake.auth?.username;
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -368,7 +435,7 @@ export class MultiplayerGateway
     return {
       roomId,
       status: "lobby" as const,
-      selectedGame: "rps" as const,
+      selectedGame: null,
       hostUsername: inviter,
       members: [
         {

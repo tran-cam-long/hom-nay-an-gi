@@ -14,3 +14,8 @@ export type RoomSetDishChoicePayload = {
 export type RoomLeavePayload = {
     roomId: string;
 }
+
+export type GameStartPayload = {
+    roomId: string;
+    game: "rps"
+}
