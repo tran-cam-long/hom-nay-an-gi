@@ -326,6 +326,11 @@ export class MultiplayerGateway
       this.assignNextHost(room);
     }
 
+    if (room.members.length === 0) {
+      this.store.rooms.delete(roomId);
+      return;
+    }
+
     this.store.rooms.set(roomId, room);
     this.emitRoomUpdated(room);
   }
