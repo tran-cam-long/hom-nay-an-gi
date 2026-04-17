@@ -45,8 +45,38 @@ export type MultiplayerError = {
 };
 
 export type MultiplayerGameKey = "rps";
+export type RpsMove = "rock" | "paper" | "scissors";
 
 export type GameStartedEvent = {
     roomId: string;
     game: MultiplayerGameKey;
+};
+
+export type RpsRoundStartedEvent = {
+    roomId: string;
+    roundNumber: number;
+    activePlayers: string[];
+    deadlineAt: string;
+    yourInitialMove: RpsMove;
+    isLocked: boolean;
+};
+
+export type RpsRoundLockedEvent = {
+    roomId: string;
+    roundNumber: number;
+};
+
+export type RpsRoundResolvedEvent = {
+    roomId: string;
+    roundNumber: number;
+    eliminatedUsernames: string[];
+    survivors: string[];
+    isTie: boolean;
+};
+
+export type GameFinishedEvent = {
+    roomId: string;
+    winnerUsername: string;
+    winningDishId: number;
+    winningDishName: string;
 };
