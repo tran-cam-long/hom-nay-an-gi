@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
 import { createMultiplayerSocket } from "./socket";
-import type { MultiplayerError, RoomState, MultiplayerConnectionStatus, MultiplayerNotification, MultiplayerGameKey, GameStartedEvent } from "../types/multiplayer";
+import type {
+  GameFinishedEvent,
+  GameStartedEvent,
+  MultiplayerConnectionStatus,
+  MultiplayerError,
+  MultiplayerGameKey,
+  MultiplayerNotification,
+  RoomState,
+  RpsMove,
+  RpsRoundLockedEvent,
+  RpsRoundResolvedEvent,
+  RpsRoundStartedEvent,
+} from "../types/multiplayer";
 import { MultiplayerContext } from "./MultiplayerContext";
 
 type MultiplayerConnectionProviderProps = {
@@ -76,6 +88,9 @@ export default function MultiplayerConnectionProvider({
     useState<MultiplayerConnectionStatus>("idle");
   const [notifications, setNotifications] = useState<MultiplayerNotification[]>([]);
   const [activeRoom, setActiveRoom] = useState<RoomState | null>(null);
+  const [currentRpsRound, setCurrentRpsRound] = useState<RpsRoundStartedEvent | null>(null);
+  const [lastRpsResolution, setLastRpsResolution] = useState<RpsRoundResolvedEvent | null>(null);
+  const [lastGameResult, setLastGameResult] = useState<GameFinishedEvent | null>(null);
   const [lastError, setLastError] = useState<MultiplayerError | null>(null);
 
   const sendInvite = (toUsername: string) => {
@@ -162,7 +177,44 @@ export default function MultiplayerConnectionProvider({
     return true;
   }, [activeRoom]);
 
-  const setRoomDishChoice = (dishId: number) => {
+  const updateRpsMove = useCallback((move: RpsMove) => {
+    const socket = socketRef.current;
+
+    if (!activeRoom) {
+      setLastError(createLocalError("ROOM_NOT_FOUND", "You are not currently in a room."));
+      return false;
+    }
+
+    if (!currentRpsRound) {
+      setLastError(createLocalError("ROUND_NOT_FOUND", "There is no active RPS round."));
+      return false;
+    }
+
+    if (currentRpsRound.isLocked) {
+      setLastError(createLocalError("ROUND_LOCKED", "This round is already locked."));
+      return false;
+    }
+
+    if (!isSocketReady(socket)) {
+      setLastError(
+        createLocalError(
+          "SOCKET_NOT_READY",
+          "You are not connected to multiplayer."
+        ),
+      );
+      return false;
+    }
+
+    setLastError(null);
+    socket.emit("rps.move.update", {
+      roomId: activeRoom.roomId,
+      move,
+    });
+    setCurrentRpsRound((current) => current ? { ...current, yourInitialMove: move } : current);
+    return true;
+  }, [activeRoom, currentRpsRound]);
+
+  const setRoomDishChoice = (dishId: number, dishName: string) => {
     const socket = socketRef.current;
 
     if (!activeRoom) {
@@ -172,6 +224,11 @@ export default function MultiplayerConnectionProvider({
 
     if (!Number.isFinite(dishId)) {
       setLastError(createLocalError("INVALID_INPUT", "Dish ID is invalid."));
+      return false;
+    }
+
+    if (!dishName.trim()) {
+      setLastError(createLocalError("INVALID_INPUT", "Dish name is required."));
       return false;
     }
 
@@ -189,6 +246,7 @@ export default function MultiplayerConnectionProvider({
     socket.emit("room.setDishChoice", {
       roomId: activeRoom.roomId,
       dishId,
+      dishName: dishName.trim(),
     });
     return true;
   };
@@ -203,6 +261,9 @@ export default function MultiplayerConnectionProvider({
       setConnectionStatus("idle");
       setNotifications([]);
       setActiveRoom(null);
+      setCurrentRpsRound(null);
+      setLastRpsResolution(null);
+      setLastGameResult(null);
       setLastError(null);
 
       return;
@@ -216,6 +277,7 @@ export default function MultiplayerConnectionProvider({
     const handleConnect = () => {
       setConnectionStatus("connected");
       setLastError(null);
+      setCurrentRpsRound(null);
       socket.emit("room.sync");
     };
 
@@ -258,6 +320,9 @@ export default function MultiplayerConnectionProvider({
 
       if (roomState) {
         setActiveRoom(roomState);
+        if (roomState.status !== "in_game") {
+          setCurrentRpsRound(null);
+        }
       }
     };
 
@@ -282,6 +347,9 @@ export default function MultiplayerConnectionProvider({
       }
 
       setActiveRoom(roomState);
+      if (roomState.status !== "in_game") {
+        setCurrentRpsRound(null);
+      }
     };
 
     const handleSocketError = (payload: unknown) => {
@@ -290,6 +358,8 @@ export default function MultiplayerConnectionProvider({
 
     const handleRoomLeft = () => {
       setActiveRoom(null);
+      setCurrentRpsRound(null);
+      setLastRpsResolution(null);
     }
 
     const handleGameStarted = (payload: unknown) => {
@@ -314,6 +384,80 @@ export default function MultiplayerConnectionProvider({
       });
     }
 
+    const handleRpsRoundStarted = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Omit<RpsRoundStartedEvent, "isLocked">)
+        : null;
+
+      if (!data) {
+        return;
+      }
+
+      setLastError(null);
+      setLastRpsResolution(null);
+      setCurrentRpsRound({
+        ...data,
+        isLocked: false,
+      });
+    };
+
+    const handleRpsRoundLocked = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as RpsRoundLockedEvent)
+        : null;
+
+      if (!data) {
+        return;
+      }
+
+      setCurrentRpsRound((current) => {
+        if (!current || current.roomId !== data.roomId || current.roundNumber !== data.roundNumber) {
+          return current;
+        }
+
+        return {
+          ...current,
+          isLocked: true,
+        };
+      });
+    };
+
+    const handleRpsRoundResolved = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as RpsRoundResolvedEvent)
+        : null;
+
+      if (!data) {
+        return;
+      }
+
+      setLastRpsResolution(data);
+      setCurrentRpsRound((current) => {
+        if (!current || current.roomId !== data.roomId || current.roundNumber !== data.roundNumber) {
+          return current;
+        }
+
+        return {
+          ...current,
+          isLocked: true,
+        };
+      });
+    };
+
+    const handleGameFinished = (payload: unknown) => {
+      const data = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as GameFinishedEvent)
+        : null;
+
+      if (!data) {
+        return;
+      }
+
+      setCurrentRpsRound(null);
+      setLastRpsResolution(null);
+      setLastGameResult(data);
+    };
+
     if (!socket) return;
 
     socket.on("connect", handleConnect);
@@ -325,6 +469,10 @@ export default function MultiplayerConnectionProvider({
     socket.on("room.updated", handleRoomUpdated);
     socket.on("room.left", handleRoomLeft);
     socket.on("game.started", handleGameStarted);
+    socket.on("rps.round.started", handleRpsRoundStarted);
+    socket.on("rps.round.locked", handleRpsRoundLocked);
+    socket.on("rps.round.resolved", handleRpsRoundResolved);
+    socket.on("game.finished", handleGameFinished);
     socket.on("error", handleSocketError);
 
     return () => {
@@ -337,6 +485,10 @@ export default function MultiplayerConnectionProvider({
       socket.off("room.updated", handleRoomUpdated);
       socket.off("room.left", handleRoomLeft);
       socket.off("game.started", handleGameStarted);
+      socket.off("rps.round.started", handleRpsRoundStarted);
+      socket.off("rps.round.locked", handleRpsRoundLocked);
+      socket.off("rps.round.resolved", handleRpsRoundResolved);
+      socket.off("game.finished", handleGameFinished);
       socket.off("error", handleSocketError);
       socket.disconnect();
 
@@ -352,6 +504,9 @@ export default function MultiplayerConnectionProvider({
         connectionStatus,
         notifications,
         activeRoom,
+        currentRpsRound,
+        lastRpsResolution,
+        lastGameResult,
         lastError,
         username,
         sendInvite,
@@ -359,6 +514,7 @@ export default function MultiplayerConnectionProvider({
         markAllNotificationsRead,
         leaveRoom,
         startGame,
+        updateRpsMove,
         setRoomDishChoice
       }}
     >
