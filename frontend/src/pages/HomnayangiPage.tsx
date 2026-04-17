@@ -12,6 +12,8 @@ import "./HomnayangiPage.css";
 import useMultiplayer from "../multiplayer/useMultiplayer";
 import InviteModal from "../components/InviteModal";
 import RoomPanel from "../components/RoomPanel";
+import type { MultiplayerGameKey } from "../types/multiplayer";
+import GameSelectionModal from "../components/GameSelectionModal";
 
 type DishItemCardProps = {
   dish: DishDetails;
@@ -202,9 +204,12 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     username: currentUsername = null,
     leaveRoom,
     startGame,
-    setRoomDishChoice } = useMultiplayer();
+    setRoomDishChoice,
+    lastError } = useMultiplayer();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+  const [isGameSelectionOpen, setIsGameSelectionOpen] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
 
   const isMobile = useIsMobile();
   const itemRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -454,14 +459,63 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
   const handleStartGame = () => {
     if (isStartDisabled || !isHost || !activeRoom) return;
-    startGame("rps"); // Phase 7 will add game selection modal
-    onNotify("Starting Rock Paper Scissors...");
+    setIsGameSelectionOpen(true);
+  };
+
+  const handleConfirmGameSelection = (game: MultiplayerGameKey) => {
+    if (!isHost || !activeRoom) {
+      return;
+    }
+
+    setIsStartingGame(true);
+    const didEmit = startGame(game);
+
+    if (!didEmit) {
+      setIsStartingGame(false);
+      onNotify("Could not start the game right now");
+      return;
+    }
+
+    onNotify("Starting game...");
   };
 
   const handleLeaveRoom = () => {
     leaveRoom();
     onNotify("Left the room");
   }
+
+  useEffect(() => {
+    if (!activeRoom) {
+      setIsGameSelectionOpen(false);
+      setIsStartingGame(false);
+      return;
+    }
+
+    if (activeRoom.status === "in_game") {
+      setIsGameSelectionOpen(false);
+      setIsStartingGame(false);
+    }
+  }, [activeRoom]);
+
+  useEffect(() => {
+    if (!isGameSelectionOpen) {
+      return;
+    }
+
+    if (!isHost || !activeRoom || activeRoom.status !== "lobby") {
+      setIsGameSelectionOpen(false);
+      setIsStartingGame(false);
+    }
+  }, [isGameSelectionOpen, isHost, activeRoom]);
+
+  useEffect(() => {
+    if (!isStartingGame || !lastError) {
+      return;
+    }
+
+    setIsStartingGame(false);
+    onNotify(lastError.message);
+  }, [isStartingGame, lastError, onNotify]);
 
   useEffect(() => {
     if (!activeRoom) {
@@ -660,6 +714,17 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           onSubmit={handleInviteSubmit}
           currentUsername={currentUsername}
           isSubmitting={isSubmittingInvite}
+        />
+
+        <GameSelectionModal
+          isOpen={isGameSelectionOpen}
+          isSubmitting={isStartingGame}
+          onClose={() => {
+            if (!isStartingGame) {
+              setIsGameSelectionOpen(false);
+            }
+          }}
+          onConfirm={handleConfirmGameSelection}
         />
 
         {!isChoosingEnabled && (

@@ -297,11 +297,7 @@ export default function MultiplayerConnectionProvider({
         ? (payload as GameStartedEvent)
         : null;
 
-      if (!data || !activeRoom) {
-        return;
-      }
-
-      if (data.roomId !== activeRoom.roomId) {
+      if (!data) {
         return;
       }
 
