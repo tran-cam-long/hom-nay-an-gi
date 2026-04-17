@@ -1,4 +1,5 @@
 export type InviteStatus = "pending" | "accepted" | "expired" | "declined";
+export type RpsMove = "rock" | "paper" | "scissors";
 
 export type Invite = {
     inviteId: string;
@@ -26,8 +27,17 @@ export type RoomState = {
     hostUsername: string;
 }
 
+export type RpsRoundState = {
+    roundNumber: number;
+    activePlayers: string[];
+    deadlineAt: string;
+    submittedMoves: Record<string, RpsMove>;
+}
+
 export type RoomStateInternal = RoomState & {
     dishChoicesByUsername: Record<string, number>;
+    dishChoiceNamesByUsername: Record<string, string>;
+    currentRound: RpsRoundState | null;
 }
 
 export function toPublicRoomState(room: RoomStateInternal): RoomState {

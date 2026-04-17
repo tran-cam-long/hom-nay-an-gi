@@ -9,6 +9,7 @@ export type InviteAcceptPayload = {
 export type RoomSetDishChoicePayload = {
     roomId: string,
     dishId: number;
+    dishName: string;
 }
 
 export type RoomLeavePayload = {
@@ -18,4 +19,9 @@ export type RoomLeavePayload = {
 export type GameStartPayload = {
     roomId: string;
     game: "rps"
+}
+
+export type RpsMoveUpdatePayload = {
+    roomId: string;
+    move: "rock" | "paper" | "scissors";
 }

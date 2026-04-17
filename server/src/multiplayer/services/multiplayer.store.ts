@@ -14,4 +14,6 @@ export class MultiplayerStore {
     readonly rooms = new Map<string, RoomStateInternal>();
 
     readonly userToRoom = new Map<string, string>();
+
+    readonly roomGameTimers = new Map<string, NodeJS.Timeout>();
 }
