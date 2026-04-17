@@ -1,4 +1,5 @@
 import { useState } from "react";
+import './RoomPancel.css';
 import type { RoomState } from "../types/multiplayer";
 
 
@@ -29,6 +30,9 @@ export default function RoomPanel({
                 <div className="room-info">
                     <h3>Room</h3>
                     <p className="room-id">Multiplayer game room ID: {room.roomId}</p>
+                    {room.selectedGame && (
+                        <p className="room-selected-game">Selected game: {room.selectedGame.toUpperCase()}</p>
+                    )}
                 </div>
                 <button
                     type="button"
