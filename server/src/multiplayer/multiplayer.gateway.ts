@@ -572,15 +572,22 @@ export class MultiplayerGateway
   }
 
   private emitRoomToUsers(room: RoomStateInternal): void {
-    const usernames = room.members.map((m) => m.username);
     const publicRoomState = toPublicRoomState(room);
 
-    for (const uname of usernames) {
+    for (const uname of room.members.map((m) => m.username)) {
       const socketIds = this.store.userSockets.get(uname);
       if (!socketIds) continue;
+
+      const roundState = this.createRoundSnapshotForUser(room, uname);
       for (const socketId of socketIds) {
-        this.server.to(socketId).emit("room.joined", { roomState: publicRoomState });
-        this.server.to(socketId).emit("room.updated", { roomState: publicRoomState });
+        this.server.to(socketId).emit("room.joined", {
+          roomState: publicRoomState,
+          currentRpsRound: roundState,
+        });
+        this.server.to(socketId).emit("room.updated", {
+          roomState: publicRoomState,
+          currentRpsRound: roundState,
+        });
       }
     }
   }
@@ -612,8 +619,13 @@ export class MultiplayerGateway
       const socketIds = this.store.userSockets.get(member.username);
       if (!socketIds) continue;
 
+      const roundState = this.createRoundSnapshotForUser(room, member.username);
+
       for (const socketId of socketIds) {
-        this.server.to(socketId).emit("room.updated", { roomState: publicRoomState });
+        this.server.to(socketId).emit("room.updated", {
+          roomState: publicRoomState,
+          currentRpsRound: roundState,
+        });
       }
     }
   }
@@ -670,6 +682,10 @@ export class MultiplayerGateway
       submittedMoves,
     };
 
+    this.logger.log(
+      `RPS round ${roundNumber} started in room ${room.roomId} for ${activePlayers.join(", ")} until ${room.currentRound.deadlineAt}`,
+    );
+
     this.store.rooms.set(room.roomId, room);
     this.emitRoomUpdated(room);
     this.emitRpsRoundStarted(room);
@@ -719,6 +735,7 @@ export class MultiplayerGateway
     }
 
     const { activePlayers, submittedMoves } = room.currentRound;
+    this.logger.log(`RPS round ${roundNumber} locked in room ${room.roomId}`);
     this.emitRpsRoundLocked(room, roundNumber);
 
     const outcome = this.resolveRpsOutcome(submittedMoves, activePlayers);
@@ -740,6 +757,12 @@ export class MultiplayerGateway
       outcome.eliminatedUsernames,
       outcome.survivors,
       outcome.isTie,
+    );
+
+    this.logger.log(
+      `RPS round ${roundNumber} resolved in room ${room.roomId}: ` +
+      `${outcome.isTie ? "tie" : `eliminated ${outcome.eliminatedUsernames.join(", ") || "none"}`}, ` +
+      `survivors ${outcome.survivors.join(", ")}`,
     );
 
     if (outcome.survivors.length === 1) {
@@ -824,6 +847,7 @@ export class MultiplayerGateway
     room.status = "finished";
     room.currentRound = null;
     this.store.rooms.set(room.roomId, room);
+    this.logger.log(`RPS game finished in room ${room.roomId}. Winner: ${winnerUsername}`);
     this.emitGameFinished(room, winnerUsername);
     this.resetRoomAfterGame(room);
   }
@@ -878,5 +902,26 @@ export class MultiplayerGateway
 
   private isRpsMove(value: unknown): value is RpsMove {
     return value === "rock" || value === "paper" || value === "scissors";
+  }
+
+  private createRoundSnapshotForUser(room: RoomStateInternal, username: string) {
+    const round = room.currentRound;
+    if (!round) {
+      return null;
+    }
+
+    const yourInitialMove = round.submittedMoves[username];
+    if (!yourInitialMove) {
+      return null;
+    }
+
+    return {
+      roomId: room.roomId,
+      roundNumber: round.roundNumber,
+      activePlayers: round.activePlayers,
+      deadlineAt: round.deadlineAt,
+      yourInitialMove,
+      isLocked: Date.now() >= new Date(round.deadlineAt).getTime(),
+    };
   }
 }

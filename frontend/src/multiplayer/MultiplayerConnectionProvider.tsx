@@ -317,10 +317,15 @@ export default function MultiplayerConnectionProvider({
       const roomState = data.roomState && typeof data.roomState === "object"
         ? (data.roomState as RoomState)
         : null;
+      const roundState = data.currentRpsRound && typeof data.currentRpsRound === "object"
+        ? (data.currentRpsRound as RpsRoundStartedEvent)
+        : null;
 
       if (roomState) {
         setActiveRoom(roomState);
-        if (roomState.status !== "in_game") {
+        if (roundState) {
+          setCurrentRpsRound(roundState);
+        } else if (roomState.status !== "in_game") {
           setCurrentRpsRound(null);
         }
       }
@@ -332,6 +337,9 @@ export default function MultiplayerConnectionProvider({
         : {};
       const roomState = data.roomState && typeof data.roomState === "object"
         ? (data.roomState as RoomState)
+        : null;
+      const roundState = data.currentRpsRound && typeof data.currentRpsRound === "object"
+        ? (data.currentRpsRound as RpsRoundStartedEvent)
         : null;
 
       if (!roomState) {
@@ -347,7 +355,9 @@ export default function MultiplayerConnectionProvider({
       }
 
       setActiveRoom(roomState);
-      if (roomState.status !== "in_game") {
+      if (roundState) {
+        setCurrentRpsRound(roundState);
+      } else if (roomState.status !== "in_game") {
         setCurrentRpsRound(null);
       }
     };

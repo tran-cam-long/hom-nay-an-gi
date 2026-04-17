@@ -218,6 +218,9 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     username: currentUsername = null,
     leaveRoom,
     startGame,
+    currentRpsRound,
+    lastRpsResolution,
+    lastGameResult,
     setRoomDishChoice,
     lastError } = useMultiplayer();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -238,6 +241,9 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const loadingRef = useRef(false);
   const isPullRefreshingRef = useRef(false);
   const prevHostUsernameRef = useRef<string | null>(null);
+  const notifiedRoundStartRef = useRef<string | null>(null);
+  const notifiedRoundResolvedRef = useRef<string | null>(null);
+  const notifiedGameFinishedRef = useRef<string | null>(null);
   const isInRoom = activeRoom !== null;
   const isHost = isInRoom && activeRoom.hostUsername === currentUsername;
 
@@ -535,6 +541,9 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   useEffect(() => {
     if (!activeRoom) {
       prevHostUsernameRef.current = null;
+      notifiedRoundStartRef.current = null;
+      notifiedRoundResolvedRef.current = null;
+      notifiedGameFinishedRef.current = null;
       return;
     }
 
@@ -546,6 +555,60 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
       prevHostUsernameRef.current = activeRoom.hostUsername;
     }
   }, [activeRoom?.hostUsername, onNotify]);
+
+  useEffect(() => {
+    if (!currentRpsRound) {
+      notifiedRoundStartRef.current = null;
+      return;
+    }
+
+    const roundKey = `${currentRpsRound.roomId}:${currentRpsRound.roundNumber}`;
+    if (notifiedRoundStartRef.current === roundKey) {
+      return;
+    }
+
+    notifiedRoundStartRef.current = roundKey;
+    onNotify(`RPS round ${currentRpsRound.roundNumber} started. Your move: ${currentRpsRound.yourInitialMove}.`);
+  }, [currentRpsRound, onNotify]);
+
+  useEffect(() => {
+    if (!lastRpsResolution) {
+      notifiedRoundResolvedRef.current = null;
+      return;
+    }
+
+    const resolutionKey = `${lastRpsResolution.roomId}:${lastRpsResolution.roundNumber}`;
+    if (notifiedRoundResolvedRef.current === resolutionKey) {
+      return;
+    }
+
+    notifiedRoundResolvedRef.current = resolutionKey;
+    if (lastRpsResolution.isTie) {
+      onNotify(`RPS round ${lastRpsResolution.roundNumber} ended in a tie. Replaying round.`);
+      return;
+    }
+
+    onNotify(
+      `RPS round ${lastRpsResolution.roundNumber} resolved. ` +
+      `Eliminated: ${lastRpsResolution.eliminatedUsernames.join(", ") || "none"}. ` +
+      `Survivors: ${lastRpsResolution.survivors.join(", ")}.`,
+    );
+  }, [lastRpsResolution, onNotify]);
+
+  useEffect(() => {
+    if (!lastGameResult) {
+      notifiedGameFinishedRef.current = null;
+      return;
+    }
+
+    const gameKey = `${lastGameResult.roomId}:${lastGameResult.winnerUsername}:${lastGameResult.winningDishId}`;
+    if (notifiedGameFinishedRef.current === gameKey) {
+      return;
+    }
+
+    notifiedGameFinishedRef.current = gameKey;
+    onNotify(`${lastGameResult.winnerUsername} won with ${lastGameResult.winningDishName}.`);
+  }, [lastGameResult, onNotify]);
 
   useEffect(() => {
     if (armedDishId === null) return;
@@ -741,6 +804,40 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           }}
           onConfirm={handleConfirmGameSelection}
         />
+
+        {isInRoom && activeRoom?.status === "in_game" && (
+          <section
+            style={{
+              marginBottom: 16,
+              padding: 16,
+              borderRadius: 12,
+              background: "#fff7ed",
+              border: "1px solid #fed7aa",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <h3 style={{ margin: 0 }}>RPS In Progress</h3>
+            {currentRpsRound ? (
+              <>
+                <div>Round: {currentRpsRound.roundNumber}</div>
+                <div>Your current move: {currentRpsRound.yourInitialMove}</div>
+                <div>Round status: {currentRpsRound.isLocked ? "Locked" : "Open for move updates"}</div>
+              </>
+            ) : (
+              <div>Waiting for the next round event...</div>
+            )}
+
+            {lastRpsResolution && (
+              <div style={{ fontSize: 14, color: "#7c2d12" }}>
+                {lastRpsResolution.isTie
+                  ? `Round ${lastRpsResolution.roundNumber} was a tie.`
+                  : `Round ${lastRpsResolution.roundNumber} survivors: ${lastRpsResolution.survivors.join(", ")}.`}
+              </div>
+            )}
+          </section>
+        )}
 
         {!isChoosingEnabled && (
           <div className="homnayangi-actions homnayangi-actions--top">
