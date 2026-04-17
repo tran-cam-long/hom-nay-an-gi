@@ -1,4 +1,5 @@
 import { useState } from "react";
+import './GameSelectionModal.css';
 import type { MultiplayerGameKey } from "../types/multiplayer";
 
 type GameSelectionModalProps = {
