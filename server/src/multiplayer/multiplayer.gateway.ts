@@ -10,11 +10,14 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MultiplayerStore } from './services/multiplayer.store';
-import { Invite, RoomStateInternal, toPublicRoomState } from './types/multiplayer.types';
+import { Invite, RoomStateInternal, RpsMove, toPublicRoomState } from './types/multiplayer.types';
 import type {
   GameStartPayload,
   InviteAcceptPayload,
-  InviteSendPayload, RoomLeavePayload, RoomSetDishChoicePayload
+  InviteSendPayload,
+  RoomLeavePayload,
+  RoomSetDishChoicePayload,
+  RpsMoveUpdatePayload,
 } from './dto/multiplayer.events';
 import { randomUUID } from 'crypto';
 
@@ -23,6 +26,8 @@ const DEFAULT_WS_CORS_ORIGINS = [
   'http://localhost:5173',
   'http://192.168.1.12:4000',
 ];
+const RPS_ROUND_DURATION_MS = 5_000;
+const RPS_MOVES: RpsMove[] = ['rock', 'paper', 'scissors'];
 
 function resolveWsCorsOrigins(): string[] {
   const fromEnv = process.env.WS_CORS_ORIGINS
@@ -242,10 +247,15 @@ export class MultiplayerGateway
       return;
     }
 
-    if (!payload || !payload.roomId || !Number.isFinite(payload.dishId)) {
+    if (
+      !payload ||
+      !payload.roomId ||
+      !Number.isFinite(payload.dishId) ||
+      !payload.dishName?.trim()
+    ) {
       client.emit("error", {
         code: "INVALID_INPUT",
-        message: "Room set dish choice payload must be present with roomId and numeric dishId."
+        message: "Room set dish choice payload must include roomId, numeric dishId, and dishName."
       });
       return;
     }
@@ -287,10 +297,70 @@ export class MultiplayerGateway
 
     const payloadDishId = payload.dishId;
     room.dishChoicesByUsername[username] = payloadDishId;
+    room.dishChoiceNamesByUsername[username] = payload.dishName.trim();
     member.hasChosenDish = true;
     this.logger.log(`${username} marked ready in room ${room.roomId}`);
     this.store.rooms.set(room.roomId, room);
     this.emitRoomUpdated(room);
+  }
+
+  @SubscribeMessage("rps.move.update")
+  handleRpsMoveUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RpsMoveUpdatePayload,
+  ) {
+    const username = this.store.socketUser.get(client.id);
+    if (!username) {
+      client.emit("error", { code: "UNAUTHENTICATED", message: "Socket is not registered." });
+      return;
+    }
+
+    const roomId = payload?.roomId?.trim();
+    const move = payload?.move;
+    if (!roomId || !this.isRpsMove(move)) {
+      client.emit("error", {
+        code: "INVALID_INPUT",
+        message: "Move update must include roomId and a supported move.",
+      });
+      return;
+    }
+
+    const currentRoomId = this.store.userToRoom.get(username);
+    if (!currentRoomId || currentRoomId !== roomId) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: "You are not in this room.",
+      });
+      return;
+    }
+
+    const room = this.store.rooms.get(roomId);
+    if (!room || room.status !== "in_game" || room.selectedGame !== "rps" || !room.currentRound) {
+      client.emit("error", {
+        code: "ROOM_NOT_READY",
+        message: "There is no active RPS round for this room.",
+      });
+      return;
+    }
+
+    if (Date.now() >= new Date(room.currentRound.deadlineAt).getTime()) {
+      client.emit("error", {
+        code: "ROUND_LOCKED",
+        message: "This round is already locked.",
+      });
+      return;
+    }
+
+    if (!room.currentRound.activePlayers.includes(username)) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: "You are not an active player in this round.",
+      });
+      return;
+    }
+
+    room.currentRound.submittedMoves[username] = move;
+    this.store.rooms.set(roomId, room);
   }
 
   @SubscribeMessage("room.leave")
@@ -332,6 +402,7 @@ export class MultiplayerGateway
     }
 
     if (room.members.length === 0) {
+      this.clearRoomGameTimer(roomId);
       this.store.rooms.delete(roomId);
       return;
     }
@@ -341,8 +412,22 @@ export class MultiplayerGateway
     }
 
     if (room.members.length === 0) {
+      this.clearRoomGameTimer(roomId);
       this.store.rooms.delete(roomId);
       return;
+    }
+
+    if (room.currentRound) {
+      room.currentRound.activePlayers = room.currentRound.activePlayers.filter((memberUsername) => memberUsername !== username);
+      delete room.currentRound.submittedMoves[username];
+    }
+
+    if (room.status === "in_game") {
+      const survivors = room.members.filter((member) => !member.isEliminated).map((member) => member.username);
+      if (survivors.length === 1) {
+        this.finishRpsGame(room, survivors[0]);
+        return;
+      }
     }
 
     this.store.rooms.set(roomId, room);
@@ -383,6 +468,31 @@ export class MultiplayerGateway
       return;
     }
 
+    const currentRoomId = this.store.userToRoom.get(username);
+    if (!currentRoomId || currentRoomId !== roomId) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: "You are not in this room.",
+      });
+      return;
+    }
+
+    if (room.hostUsername !== username) {
+      client.emit("error", {
+        code: "FORBIDDEN",
+        message: "Only the host can start the game.",
+      });
+      return;
+    }
+
+    if (room.status !== "lobby") {
+      client.emit("error", {
+        code: "ROOM_NOT_JOINABLE",
+        message: "This room is not in lobby state.",
+      });
+      return;
+    }
+
     if (room.members.length < 2) {
       client.emit("error", {
         code: "ROOM_NOT_READY",
@@ -400,13 +510,18 @@ export class MultiplayerGateway
       return;
     }
 
+    room.members = room.members.map((member) => ({
+      ...member,
+      isEliminated: false,
+    }));
     room.status = "in_game";
     room.selectedGame = game;
+    room.currentRound = null;
     this.store.rooms.set(room.roomId, room);
 
     this.logger.log(`${username} started ${game} in room ${room.roomId}`);
     this.emitGameStarted(room);
-    this.emitRoomUpdated(room);
+    this.startNextRpsRound(room, 1);
   }
 
   private getUsernameFromHandshake(client: Socket): string | null {
@@ -451,6 +566,8 @@ export class MultiplayerGateway
         },
       ],
       dishChoicesByUsername: {},
+      dishChoiceNamesByUsername: {},
+      currentRound: null,
     };
   }
 
@@ -523,5 +640,243 @@ export class MultiplayerGateway
         });
       }
     }
+  }
+
+  private startNextRpsRound(room: RoomStateInternal, roundNumber: number): void {
+    if (room.selectedGame !== "rps" || room.status !== "in_game") {
+      return;
+    }
+
+    this.clearRoomGameTimer(room.roomId);
+
+    const activePlayers = room.members
+      .filter((member) => !member.isEliminated)
+      .map((member) => member.username);
+
+    if (activePlayers.length === 1) {
+      this.finishRpsGame(room, activePlayers[0]);
+      return;
+    }
+
+    const submittedMoves: Record<string, RpsMove> = {};
+    for (const username of activePlayers) {
+      submittedMoves[username] = this.getRandomRpsMove();
+    }
+
+    room.currentRound = {
+      roundNumber,
+      activePlayers,
+      deadlineAt: new Date(Date.now() + RPS_ROUND_DURATION_MS).toISOString(),
+      submittedMoves,
+    };
+
+    this.store.rooms.set(room.roomId, room);
+    this.emitRoomUpdated(room);
+    this.emitRpsRoundStarted(room);
+    this.scheduleRpsRoundResolution(room.roomId, roundNumber);
+  }
+
+  private emitRpsRoundStarted(room: RoomStateInternal): void {
+    const round = room.currentRound;
+    if (!round) {
+      return;
+    }
+
+    for (const username of round.activePlayers) {
+      const socketIds = this.store.userSockets.get(username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("rps.round.started", {
+          roomId: room.roomId,
+          roundNumber: round.roundNumber,
+          activePlayers: round.activePlayers,
+          deadlineAt: round.deadlineAt,
+          yourInitialMove: round.submittedMoves[username],
+        });
+      }
+    }
+  }
+
+  private scheduleRpsRoundResolution(roomId: string, roundNumber: number): void {
+    const timer = setTimeout(() => {
+      this.lockAndResolveRpsRound(roomId, roundNumber);
+    }, RPS_ROUND_DURATION_MS);
+
+    this.store.roomGameTimers.set(roomId, timer);
+  }
+
+  private lockAndResolveRpsRound(roomId: string, roundNumber: number): void {
+    this.clearRoomGameTimer(roomId);
+
+    const room = this.store.rooms.get(roomId);
+    if (!room || room.selectedGame !== "rps" || room.status !== "in_game" || !room.currentRound) {
+      return;
+    }
+
+    if (room.currentRound.roundNumber !== roundNumber) {
+      return;
+    }
+
+    const { activePlayers, submittedMoves } = room.currentRound;
+    this.emitRpsRoundLocked(room, roundNumber);
+
+    const outcome = this.resolveRpsOutcome(submittedMoves, activePlayers);
+    if (!outcome.isTie) {
+      room.members = room.members.map((member) => ({
+        ...member,
+        isEliminated: outcome.eliminatedUsernames.includes(member.username)
+          ? true
+          : member.isEliminated,
+      }));
+    }
+
+    room.currentRound = null;
+    this.store.rooms.set(room.roomId, room);
+    this.emitRoomUpdated(room);
+    this.emitRpsRoundResolved(
+      room,
+      roundNumber,
+      outcome.eliminatedUsernames,
+      outcome.survivors,
+      outcome.isTie,
+    );
+
+    if (outcome.survivors.length === 1) {
+      this.finishRpsGame(room, outcome.survivors[0]);
+      return;
+    }
+
+    this.startNextRpsRound(room, roundNumber + 1);
+  }
+
+  private emitRpsRoundLocked(room: RoomStateInternal, roundNumber: number): void {
+    for (const member of room.members) {
+      const socketIds = this.store.userSockets.get(member.username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("rps.round.locked", {
+          roomId: room.roomId,
+          roundNumber,
+        });
+      }
+    }
+  }
+
+  private emitRpsRoundResolved(
+    room: RoomStateInternal,
+    roundNumber: number,
+    eliminatedUsernames: string[],
+    survivors: string[],
+    isTie: boolean,
+  ): void {
+    for (const member of room.members) {
+      const socketIds = this.store.userSockets.get(member.username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("rps.round.resolved", {
+          roomId: room.roomId,
+          roundNumber,
+          eliminatedUsernames,
+          survivors,
+          isTie,
+        });
+      }
+    }
+  }
+
+  private resolveRpsOutcome(submittedMoves: Record<string, RpsMove>, activePlayers: string[]): {
+    eliminatedUsernames: string[];
+    survivors: string[];
+    isTie: boolean;
+  } {
+    const activeMoves = activePlayers.map((username) => submittedMoves[username]);
+    const uniqueMoves = new Set(activeMoves);
+    if (uniqueMoves.size <= 1 || uniqueMoves.size === 3) {
+      return {
+        eliminatedUsernames: [],
+        survivors: activePlayers,
+        isTie: true,
+      };
+    }
+
+    const [firstMove, secondMove] = Array.from(uniqueMoves);
+    const beats: Record<RpsMove, RpsMove> = {
+      rock: "scissors",
+      paper: "rock",
+      scissors: "paper",
+    };
+    const losingMove = beats[firstMove] === secondMove ? secondMove : firstMove;
+    const eliminatedUsernames = activePlayers.filter((username) => submittedMoves[username] === losingMove);
+    const survivors = activePlayers.filter((username) => submittedMoves[username] !== losingMove);
+
+    return {
+      eliminatedUsernames,
+      survivors,
+      isTie: false,
+    };
+  }
+
+  private finishRpsGame(room: RoomStateInternal, winnerUsername: string): void {
+    this.clearRoomGameTimer(room.roomId);
+    room.status = "finished";
+    room.currentRound = null;
+    this.store.rooms.set(room.roomId, room);
+    this.emitGameFinished(room, winnerUsername);
+    this.resetRoomAfterGame(room);
+  }
+
+  private emitGameFinished(room: RoomStateInternal, winnerUsername: string): void {
+    const winningDishId = room.dishChoicesByUsername[winnerUsername];
+    const winningDishName = room.dishChoiceNamesByUsername[winnerUsername] ?? `Dish ${winningDishId}`;
+    if (!Number.isFinite(winningDishId)) {
+      this.logger.warn(`Missing winning dish for ${winnerUsername} in room ${room.roomId}`);
+      return;
+    }
+
+    for (const member of room.members) {
+      const socketIds = this.store.userSockets.get(member.username);
+      if (!socketIds) continue;
+
+      for (const socketId of socketIds) {
+        this.server.to(socketId).emit("game.finished", {
+          roomId: room.roomId,
+          winnerUsername,
+          winningDishId,
+          winningDishName,
+        });
+      }
+    }
+  }
+
+  private resetRoomAfterGame(room: RoomStateInternal): void {
+    room.status = "lobby";
+    room.selectedGame = null;
+    room.currentRound = null;
+    room.members = room.members.map((member) => ({
+      ...member,
+      isEliminated: false,
+    }));
+
+    this.store.rooms.set(room.roomId, room);
+    this.emitRoomUpdated(room);
+  }
+
+  private clearRoomGameTimer(roomId: string): void {
+    const timer = this.store.roomGameTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.store.roomGameTimers.delete(roomId);
+    }
+  }
+
+  private getRandomRpsMove(): RpsMove {
+    return RPS_MOVES[Math.floor(Math.random() * RPS_MOVES.length)];
+  }
+
+  private isRpsMove(value: unknown): value is RpsMove {
+    return value === "rock" || value === "paper" || value === "scissors";
   }
 }
