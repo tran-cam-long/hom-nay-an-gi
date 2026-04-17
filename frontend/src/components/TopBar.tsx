@@ -49,18 +49,25 @@ export default function TopBar({ username, onLoginClick, onLogoutClick, onOpenHo
       return;
     }
 
+    markAllNotificationsRead();
+
     const handlePointerDown = (event: MouseEvent) => {
       if (!dropdownRef.current?.contains(event.target as Node)) {
         setIsNotificationOpen(false);
       }
     };
 
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
     window.addEventListener("mousedown", handlePointerDown);
 
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [isNotificationOpen]);
+  }, [isNotificationOpen, markAllNotificationsRead]);
 
   useEffect(() => {
     if (activeRoom && pendingInviteId) {
