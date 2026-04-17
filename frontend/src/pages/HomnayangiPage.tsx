@@ -14,6 +14,7 @@ import InviteModal from "../components/InviteModal";
 import RoomPanel from "../components/RoomPanel";
 import type { MultiplayerGameKey } from "../types/multiplayer";
 import GameSelectionModal from "../components/GameSelectionModal";
+import RpsGamePanel from "../components/RpsGamePanel";
 
 type DishItemCardProps = {
   dish: DishDetails;
@@ -221,6 +222,7 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
     currentRpsRound,
     lastRpsResolution,
     lastGameResult,
+    updateRpsMove,
     setRoomDishChoice,
     lastError } = useMultiplayer();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -805,38 +807,20 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
           onConfirm={handleConfirmGameSelection}
         />
 
-        {isInRoom && activeRoom?.status === "in_game" && (
-          <section
-            style={{
-              marginBottom: 16,
-              padding: 16,
-              borderRadius: 12,
-              background: "#fff7ed",
-              border: "1px solid #fed7aa",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
+        {isInRoom && activeRoom && (
+          <RpsGamePanel
+            room={activeRoom}
+            currentUsername={currentUsername}
+            currentRound={currentRpsRound}
+            lastResolution={lastRpsResolution}
+            lastGameResult={lastGameResult}
+            onMoveSelect={(move) => {
+              const didEmit = updateRpsMove(move);
+              if (!didEmit) {
+                onNotify("Could not update your move right now.");
+              }
             }}
-          >
-            <h3 style={{ margin: 0 }}>RPS In Progress</h3>
-            {currentRpsRound ? (
-              <>
-                <div>Round: {currentRpsRound.roundNumber}</div>
-                <div>Your current move: {currentRpsRound.yourInitialMove}</div>
-                <div>Round status: {currentRpsRound.isLocked ? "Locked" : "Open for move updates"}</div>
-              </>
-            ) : (
-              <div>Waiting for the next round event...</div>
-            )}
-
-            {lastRpsResolution && (
-              <div style={{ fontSize: 14, color: "#7c2d12" }}>
-                {lastRpsResolution.isTie
-                  ? `Round ${lastRpsResolution.roundNumber} was a tie.`
-                  : `Round ${lastRpsResolution.roundNumber} survivors: ${lastRpsResolution.survivors.join(", ")}.`}
-              </div>
-            )}
-          </section>
+          />
         )}
 
         {!isChoosingEnabled && (

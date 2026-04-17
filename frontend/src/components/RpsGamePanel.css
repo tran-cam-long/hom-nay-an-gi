@@ -1,0 +1,222 @@
+.rps-panel {
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid #f5c58f;
+  background:
+    radial-gradient(circle at top right, rgba(255, 236, 210, 0.95), transparent 38%),
+    linear-gradient(180deg, #fff8ef 0%, #fff2df 100%);
+  box-shadow: 0 16px 34px rgba(205, 122, 40, 0.12);
+}
+
+.rps-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rps-panel__eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a3412;
+}
+
+.rps-panel__title {
+  margin: 0;
+  font-size: 24px;
+  color: #431407;
+}
+
+.rps-panel__status {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rps-panel__status--live {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.rps-panel__status--locked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.rps-panel__meta {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rps-panel__meta-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rps-panel__meta-label {
+  font-size: 12px;
+  color: #92400e;
+}
+
+.rps-panel__players {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rps-panel__player-chip {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #fed7aa;
+  color: #7c2d12;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rps-panel__player-chip--you {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #fff7ed;
+}
+
+.rps-panel__banner,
+.rps-panel__spectator,
+.rps-panel__lobby-ready,
+.rps-panel__resolution,
+.rps-panel__winner {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.rps-panel__banner {
+  border: 1px solid rgba(249, 115, 22, 0.22);
+}
+
+.rps-panel__banner-copy,
+.rps-panel__spectator span,
+.rps-panel__lobby-ready span,
+.rps-panel__resolution-copy,
+.rps-panel__winner-copy {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.45;
+  color: #7c2d12;
+}
+
+.rps-panel__moves {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rps-move-button {
+  border: 1px solid #fdba74;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 14px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.rps-move-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(194, 65, 12, 0.1);
+  border-color: #f97316;
+}
+
+.rps-move-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.rps-move-button--selected {
+  border-color: #c2410c;
+  background: linear-gradient(180deg, #ffedd5 0%, #fed7aa 100%);
+  box-shadow: 0 12px 20px rgba(194, 65, 12, 0.12);
+}
+
+.rps-move-button__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.rps-move-button__label {
+  font-weight: 700;
+  color: #431407;
+}
+
+.rps-move-button__detail {
+  font-size: 12px;
+  color: #7c2d12;
+}
+
+.rps-panel__resolution {
+  border: 1px solid rgba(217, 119, 6, 0.24);
+}
+
+.rps-panel__resolution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rps-panel__winner {
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(220, 252, 231, 0.95), transparent 45%),
+    rgba(255, 255, 255, 0.9);
+}
+
+.rps-panel__winner-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #166534;
+}
+
+.rps-panel__winner-title {
+  margin: 8px 0 0;
+  font-size: 26px;
+  color: #14532d;
+}
+
+@media (max-width: 720px) {
+  .rps-panel__header {
+    flex-direction: column;
+  }
+
+  .rps-panel__status {
+    align-self: flex-start;
+  }
+
+  .rps-panel__moves,
+  .rps-panel__meta {
+    grid-template-columns: 1fr;
+  }
+}

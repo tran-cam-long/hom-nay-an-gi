@@ -323,11 +323,10 @@ export default function MultiplayerConnectionProvider({
 
       if (roomState) {
         setActiveRoom(roomState);
-        if (roundState) {
-          setCurrentRpsRound(roundState);
-        } else if (roomState.status !== "in_game") {
-          setCurrentRpsRound(null);
-        }
+        setCurrentRpsRound(roundState);
+        setLastGameResult((current) =>
+          current && current.roomId === roomState.roomId ? current : null,
+        );
       }
     };
 
@@ -355,11 +354,7 @@ export default function MultiplayerConnectionProvider({
       }
 
       setActiveRoom(roomState);
-      if (roundState) {
-        setCurrentRpsRound(roundState);
-      } else if (roomState.status !== "in_game") {
-        setCurrentRpsRound(null);
-      }
+      setCurrentRpsRound(roundState);
     };
 
     const handleSocketError = (payload: unknown) => {
@@ -370,6 +365,7 @@ export default function MultiplayerConnectionProvider({
       setActiveRoom(null);
       setCurrentRpsRound(null);
       setLastRpsResolution(null);
+      setLastGameResult(null);
     }
 
     const handleGameStarted = (payload: unknown) => {
@@ -392,6 +388,9 @@ export default function MultiplayerConnectionProvider({
           selectedGame: data.game
         }
       });
+      setCurrentRpsRound(null);
+      setLastRpsResolution(null);
+      setLastGameResult(null);
     }
 
     const handleRpsRoundStarted = (payload: unknown) => {
@@ -405,6 +404,7 @@ export default function MultiplayerConnectionProvider({
 
       setLastError(null);
       setLastRpsResolution(null);
+      setLastGameResult(null);
       setCurrentRpsRound({
         ...data,
         isLocked: false,
