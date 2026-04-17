@@ -189,6 +189,20 @@ function incrementChosenDisplay(items: RecommendationItem[], dishId: number, cho
   );
 }
 
+function findDishNameById(
+  dishId: number,
+  collections: Array<RecommendationItem[]>,
+): string | null {
+  for (const items of collections) {
+    const found = items.find((item) => item.dish.id === dishId);
+    if (found) {
+      return found.dish.name;
+    }
+  }
+
+  return null;
+}
+
 export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
   const [favorites, setFavorites] = useState<RecommendationItem[]>([]);
   const [discovery, setDiscovery] = useState<RecommendationItem[]>([]);
@@ -428,7 +442,8 @@ export default function HomnayangiPage({ onNotify }: HomnayangiPageProps) {
 
   const handleSetDishChoiceSuccess = (dishId: number) => {
     if (activeRoom) {
-      const didSync = setRoomDishChoice(dishId);
+      const dishName = findDishNameById(dishId, [favorites, discovery, leastOftenInTop]);
+      const didSync = dishName ? setRoomDishChoice(dishId, dishName) : false;
       if (!didSync) {
         onNotify("Dish saved, but room sync failed. Please refresh the room.");
       }
