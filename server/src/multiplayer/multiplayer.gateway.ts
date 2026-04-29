@@ -24,7 +24,9 @@ import { randomUUID } from 'crypto';
 const DEFAULT_WS_CORS_ORIGINS = [
   'http://localhost:4000',
   'http://localhost:5173',
-  'http://192.168.1.12:4000',
+  'http://192.168.1.3:4000',
+  'http://192.168.1.3:5173',
+  'https://vien.conmeo.org'
 ];
 const RPS_ROUND_DURATION_MS = 5_000;
 const RPS_MOVES: RpsMove[] = ['rock', 'paper', 'scissors'];

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
 import { createMultiplayerSocket } from "./socket";
+import { MULTIPLAYER_DEBUG, WS_URL } from "../config";
 import type {
   GameFinishedEvent,
   GameStartedEvent,
@@ -274,20 +275,45 @@ export default function MultiplayerConnectionProvider({
     const socket = createMultiplayerSocket({ accessToken, username });
     socketRef.current = socket;
 
+    if (MULTIPLAYER_DEBUG) {
+      console.log("[multiplayer] creating socket", {
+        pageOrigin: typeof window !== "undefined" ? window.location.origin : "unknown",
+        wsUrl: WS_URL,
+        socketPath: socket.io.opts.path,
+        username,
+      });
+    }
+
     const handleConnect = () => {
       setConnectionStatus("connected");
       setLastError(null);
       setCurrentRpsRound(null);
+      if (MULTIPLAYER_DEBUG) {
+        console.log("[multiplayer] connected", {
+          socketId: socket.id,
+          transport: socket.io.engine?.transport?.name,
+        });
+      }
       socket.emit("room.sync");
     };
 
-    const handleDisconnect = () => {
+    const handleDisconnect = (reason: string) => {
       setConnectionStatus("disconnected");
+      if (MULTIPLAYER_DEBUG) {
+        console.log("[multiplayer] disconnected", {
+          reason,
+          active: socket.active,
+          connected: socket.connected,
+        });
+      }
     };
 
     const handleConnectionError = (payload: unknown) => {
       setConnectionStatus("disconnected");
       setLastError(normalizeSocketError(payload));
+      if (MULTIPLAYER_DEBUG) {
+        console.log("[multiplayer] connect_error", payload);
+      }
     };
 
     const handleNotificationNew = (payload: unknown) => {

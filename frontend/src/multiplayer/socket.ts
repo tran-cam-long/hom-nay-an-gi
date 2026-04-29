@@ -10,7 +10,7 @@ export function createMultiplayerSocket(auth: MultiplayerSocketAuth): Socket {
   return io(WS_URL, {
     autoConnect: true,
     withCredentials: true,
-    transports: ["websocket"],
+    path: "/socket.io",
     auth: {
       token: auth.accessToken,
       username: auth.username,
